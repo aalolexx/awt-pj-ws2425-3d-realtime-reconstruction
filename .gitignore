@@ -40,7 +40,6 @@ venv.bak/
 
 # Jupyter Notebook files
 .ipynb_checkpoints
-*.ipynb
 
 # IDE / Editor specific files
 .vscode/
