@@ -17,8 +17,9 @@ from depth_anything_v2.dpt import DepthAnythingV2
 #
 
 class DepthEstimator:
-    def __init__(self):
+    def __init__(self, input_size=256):
         """Initialize the DepthEstimator."""
+        self.input_size = input_size        
         self.model = DepthAnythingV2(encoder='vits', features=64, out_channels=[48, 96, 192, 384])
         device = 'cuda'
         if not torch.cuda.is_available():
@@ -34,7 +35,7 @@ class DepthEstimator:
         
     def predict(self, image):
         """Predict depth from input."""
-        depth = self.model.infer_image(image)
+        depth = self.model.infer_image(image, input_size=self.input_size)
         # normalize
         depth = (depth - depth.min()) / (depth.max() - depth.min())
         return depth

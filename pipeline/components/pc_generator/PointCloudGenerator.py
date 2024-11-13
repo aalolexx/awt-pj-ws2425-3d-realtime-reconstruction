@@ -18,6 +18,8 @@ class PointCloudGenerator:
     def generate(self):
         """Continuously capture frames from webcam and process them."""
         while True:
+            start_time = time.time()
+
             # Capture frame-by-frame
             ret, frame = self.cap.read()
             
@@ -26,7 +28,8 @@ class PointCloudGenerator:
                 break
                 
             self.process_frame(frame)
-            
+            end_time = time.time()
+            print(f"Depth prediction took: {end_time - start_time} seconds")
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
