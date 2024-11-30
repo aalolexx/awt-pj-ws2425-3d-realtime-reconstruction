@@ -54,9 +54,7 @@ class PointCloudGenerator:
         mask = mask.astype(np.uint8)
 
         contours, _ = cv2.findContours(image=mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
-        centeroids = [np.mean(contour, axis=0) for contour in contours]
-        target_point = [int(mask.shape[1] / 2), int(mask.shape[0] / (3/2))]
-        most_central_centeroid_idx = np.argmin([np.abs(c - target_point) for c in centeroids])
+        biggest_contour_idx = np.argmax([cv2.contourArea(c) for c in contours])
 
         #if most_central_centeroid_idx < len(contours):
         #    print(most_central_centeroid_idx)
@@ -68,21 +66,20 @@ class PointCloudGenerator:
 
         try:
             final_mask = np.zeros(depth_image.shape)
-            cv2.drawContours(image=final_mask, contours=contours, contourIdx=most_central_centeroid_idx, color=(255), thickness=cv2.FILLED)
+            cv2.drawContours(image=final_mask, contours=contours, contourIdx=biggest_contour_idx, color=(255), thickness=cv2.FILLED)
             print("got contour")
+            cv2.imshow('mask', final_mask)
+            return final_mask, contours[biggest_contour_idx]
         except:
             print("Failed with contour")
-            final_mask = mask
+            cv2.imshow('mask', mask)
+            return mask, _
 
-        cv2.imshow('mask', final_mask)
-        return final_mask
+        
 
     
 
     def create_point_cloud(self, image_rgb, image_depth, equal_his=False, depth_threshold=0.1):
-        width = np.shape(image_depth)[1]
-        height = np.shape(image_depth)[0]
-
         # Convert depth to 3D points without perspective scaling
         if equal_his:
             equalized_depth = cv2.normalize(image_depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -92,19 +89,29 @@ class PointCloudGenerator:
         else:
             depth = np.asarray(image_depth)
 
+        # Cut image to actual human
+        human_mask, contour = self.get_human_mask(image_depth)
+        human_mask_bb = cv2.boundingRect(contour)
+        hx, hy, hw, hh = human_mask_bb
+        #cut_image_rgb = image_rgb[hy:hy+hh, hx:hx+hw]
+        cut_image_depth = image_depth[hy:hy+hh, hx:hx+hw]
+        depth = depth[hy:hy+hh, hx:hx+hw]
+        human_mask = human_mask[hy:hy+hh, hx:hx+hw]
+
+        width = np.shape(cut_image_depth)[1]
+        height = np.shape(cut_image_depth)[0]
+
         # Generate a 3D point grid
         u, v = np.meshgrid(np.arange(width), np.arange(height))
 
         # Convert to 3D coordinates
         x = u 
         y = v
-        z = depth * 1000 # Maintain straight-line scaling without perspective adjustment
-
-        human_mask = self.get_human_mask(image_depth)
+        z = depth * 128 # Maintain straight-line scaling without perspective adjustment
 
         # Stack and filter valid points
         points = np.dstack((x, y, z)).reshape(-1, 3)
-    
+        
         #valid_points = points[depth.reshape(-1) > 0]  # Remove zero-depth points
         points_x = points[:, 0].astype(int)
         points_y = points[:, 1].astype(int)
@@ -124,7 +131,7 @@ class PointCloudGenerator:
                     [0, 0, 1, 0],
                     [0, 0, 0, 1]])
 
-        downpcd = pcd.voxel_down_sample(voxel_size=10)
+        downpcd = pcd.voxel_down_sample(voxel_size=2)
 
         return downpcd
         
@@ -135,7 +142,8 @@ class PointCloudGenerator:
         """
 
         depth = self.depth_estimator.predict(frame)
-        pcd = self.create_point_cloud(frame, depth)
+        depth = cv2.resize(depth, (256, 256))
+        pcd = self.create_point_cloud(frame, depth, equal_his=False)
 
         if not self.is_point_cloud_created:
             self.vis.add_geometry(pcd)
