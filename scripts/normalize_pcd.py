@@ -76,7 +76,7 @@ example call:
 """
 def main():
     # Create the argument parser
-    parser = argparse.ArgumentParser(description="Process some input arguments.")
+    parser = argparse.ArgumentParser(description="Process input arguments.")
     
     # Add arguments
     parser.add_argument('-i', '--input', type=str, help="Input Path (eg. THuman2.1_Release/model)", required=True)

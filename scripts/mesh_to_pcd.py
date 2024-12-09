@@ -33,7 +33,7 @@ input:
     file_path: file path where the point cloud will be stored
 """
 def save_pcd(pcd, file_path):
-  o3d.io.write_point_cloud(file_path, pcd)
+    o3d.io.write_point_cloud(file_path, pcd)
 
 """
 This program loads the meshes from the THuman 2.1 dataset and extracts point clouds from the meshes.
@@ -43,7 +43,7 @@ Example call:
 """
 def main():
     # Create the argument parser
-    parser = argparse.ArgumentParser(description="Process some input arguments.")
+    parser = argparse.ArgumentParser(description="Process input arguments.")
     
     # Add arguments
     parser.add_argument('-i', '--input', type=str, help="Input Path (eg. THuman2.1_Release/model)", required=True)
