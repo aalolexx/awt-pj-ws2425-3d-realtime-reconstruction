@@ -25,7 +25,7 @@ input:
 output:
     normalized point cloud
 """
-def normalize_pcd(pcd, old_bounds_max, old_bounds_min, new_max=128.0, new_min=0.0):
+def normalize_pcd_old(pcd, old_bounds_max, old_bounds_min, new_max=128.0, new_min=0.0):
     # move point cloud such that all values are over positive minimum (0,0,0)
     translation_matrix = np.array([
         [1.0, 0.0, 0.0, -old_bounds_min[0]],
@@ -56,8 +56,30 @@ def normalize_pcd(pcd, old_bounds_max, old_bounds_min, new_max=128.0, new_min=0.
         [0.0, 0.0, 0.0, 1.0]
     ])
     result = result.transform(translation_matrix2)
+    return result
+
+"""
+description: creates a point cloud from mesh file
+input:
+    pcd: open3d point cloud object
+    new_max: new maximum value for points of point cloud
+    new_min: new minimum value (offset) for points of point cloud
+output:
+    normalized point cloud
+"""
+def normalize_pcd(pcd, new_max=128.0, new_min=0.0):
+    # move point cloud such that all values are over positive minimum (0,0,0)
+    result = copy.deepcopy(pcd).translate(-pcd.get_min_bound(), relative=True)
+
+    # isomorphic scale so that all points are between 0 and max new range
+    scale = ((new_max - new_min) / (max(result.get_max_bound()) - min(result.get_min_bound())))
+    result = result.scale(scale, center=(0,0,0))
+
+    if new_min == 0.0:
+       return result
     
-    # return result
+    # move the point cloud to the new lower bound 
+    result = result.translate((new_min, new_min, new_min), relative=True)
     return result
 
 """
@@ -108,7 +130,7 @@ def main():
         
         # load mesh, create pcd and store pcd file
         pcd = load_pcd(pcd_file)
-        pcd = normalize_pcd(pcd, pcd.get_max_bound(), pcd.get_min_bound(), new_max_range)
+        pcd = normalize_pcd(pcd, new_max_range)
         save_pcd(pcd, normalized_file)
 
 if __name__ == "__main__":
