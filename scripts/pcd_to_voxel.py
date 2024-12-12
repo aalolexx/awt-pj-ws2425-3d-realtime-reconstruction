@@ -22,7 +22,7 @@ output:
     generated voxel grid from point cloud
 """
 def pcd_to_voxel_grid(pcd):
-    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, 1)
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pcd, voxel_size=1, min_bound=(0,0,0), max_bound=(128,128,128))
     return voxel_grid
 
 """
@@ -57,17 +57,15 @@ def main():
 
     # runs through every point cloud and normalizes them
     n = 29340
+    total_skiped = 0
     for i in range(n):
-        # track progress
-        print("process pcd pair number:" + str(i))
-        
         # build input file path:
         pcd_full_file = pcd_file_path + "/" + str(i) + "_full" + ".ply"
         pcd_cut_file = pcd_file_path + "/" + str(i) + "_cut" + ".ply"
 
         # build output file path:
-        voxel_full_file = voxel_file_path + "/" + str(i) + "_full" + ".ply"
-        voxel_cut_file = voxel_file_path + "/" + str(i) + "_cut" + ".ply"
+        voxel_full_file = voxel_file_path + "/" + str(i - total_skiped) + "_full" + ".ply"
+        voxel_cut_file = voxel_file_path + "/" + str(i - total_skiped) + "_cut" + ".ply"
 
         # load pcd, create voxel grid, save voxel grid
         pcd_full = load_pcd(pcd_full_file)
@@ -75,26 +73,21 @@ def main():
         voxel_full = pcd_to_voxel_grid(pcd_full)
         voxel_cut = pcd_to_voxel_grid(pcd_cut)
 
-        ##print(voxel_full)
-        ##voxels_B   = voxel_full.get_voxels()
-        ##for voxel in voxels_B[:5]:  # Print details for the first 5 voxels
-        ##    print("Grid index:", voxel.grid_index)
-##
-        ##print(voxel_cut)
-        ##voxels_A  = voxel_cut.get_voxels()
-        ##for voxel in voxels_A[:5]:  # Print details for the first 5 voxels
-        ##    print("Grid index:", voxel.grid_index)
-##
-##
-        ##indices_A = {(v.grid_index[0], v.grid_index[1], v.grid_index[2]) for v in voxels_A}
-        ##indices_B = {(v.grid_index[0], v.grid_index[1], v.grid_index[2]) for v in voxels_B}
-##
-        ##common_indices = indices_A.intersection(indices_B)
-        ##num_common_voxels = len(common_indices)
-        ##print("Number of common voxels:", num_common_voxels)
+        voxels_B   = voxel_full.get_voxels()
+        voxels_A  = voxel_cut.get_voxels()
+        indices_A = {(v.grid_index[0], v.grid_index[1], v.grid_index[2]) for v in voxels_A}
+        indices_B = {(v.grid_index[0], v.grid_index[1], v.grid_index[2]) for v in voxels_B}
 
-        save_voxel_grid(voxel_full_file, voxel_full)
-        save_voxel_grid(voxel_cut_file, voxel_cut)
+        common_indices = indices_A.intersection(indices_B)
+        num_common_voxels = len(common_indices)
+        if len(voxels_A) != num_common_voxels:
+            print("ERROR: PCD " + str(i) + " has an unexpected output. Expected common " + str(len(voxels_A)) + " points, but result showed " + str(num_common_voxels) + ", diff: " + str(abs(len(voxels_A) - num_common_voxels)))
+            total_skiped = total_skiped + 1
+        else:
+            save_voxel_grid(voxel_full_file, voxel_full)
+            save_voxel_grid(voxel_cut_file, voxel_cut)
+    
+    print("Program finished: " + str(total_skiped) + " had to be skipped")
 
 if __name__ == "__main__":
     main()
