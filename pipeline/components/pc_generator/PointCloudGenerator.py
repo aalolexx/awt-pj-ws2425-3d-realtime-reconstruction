@@ -3,49 +3,17 @@ import time
 import numpy as np
 import open3d as o3d
 
-from DepthEstimator import DepthEstimator
+from util.base_module import BaseModule
 
 
-class PointCloudGenerator:
-    def __init__(self):
+class PointCloudGenerator(BaseModule):
+    def __init__(self, visualize=False):
         """Initialize the PointCloudGenerator with webcam capture."""
-        
-        self.depth_estimator = DepthEstimator()
-        self.cap = cv2.VideoCapture(0)
-
-        self.vis = o3d.visualization.Visualizer()
-        self.vis.create_window(width=800, height=600)
-        self.is_point_cloud_created = False
-
-        if not self.cap.isOpened():
-            raise Exception("Could not open webcam")
-
-
-    def generate(self):
-        """Continuously capture frames from webcam and process them."""
-        while True:
-            #start_time = time.time()
-
-            # Capture frame-by-frame
-            ret, frame = self.cap.read()
-            
-            if not ret:
-                print("Failed to grab frame")
-                break
-                
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            self.process_frame(frame)
-            #end_time = time.time()
-            #print(f"Depth prediction took: {end_time - start_time} seconds")
-            # Break the loop if 'q' is pressed
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-                            
-        # Release the capture when done
-        self.cap.release()
-        cv2.destroyAllWindows()
-        self.vis.destroy_window()
+        self._visualize = visualize
+        if self._visualize:
+            self.vis = o3d.visualization.Visualizer()
+            self.vis.create_window(width=800, height=600)
+            self.is_point_cloud_created = False
 
 
     def get_human_mask(self, depth_image):
@@ -67,19 +35,14 @@ class PointCloudGenerator:
         try:
             final_mask = np.zeros(depth_image.shape)
             cv2.drawContours(image=final_mask, contours=contours, contourIdx=biggest_contour_idx, color=(255), thickness=cv2.FILLED)
-            print("got contour")
-            cv2.imshow('mask', final_mask)
+            #cv2.imshow('mask', final_mask)
             return final_mask, contours[biggest_contour_idx]
         except:
-            print("Failed with contour")
-            cv2.imshow('mask', mask)
+            #cv2.imshow('mask', mask)
             return mask, _
-
-        
-
     
 
-    def create_point_cloud(self, image_rgb, image_depth, equal_his=False, depth_threshold=0.1):
+    def create_point_cloud(self, image_depth, equal_his=False, depth_threshold=0.1):
         # Convert depth to 3D points without perspective scaling
         if equal_his:
             equalized_depth = cv2.normalize(image_depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -90,7 +53,7 @@ class PointCloudGenerator:
             depth = np.asarray(image_depth)
 
         # Cut image to actual human
-        human_mask, contour = self.get_human_mask(image_depth)
+        human_mask, contour = self.get_human_mask(depth)
         human_mask_bb = cv2.boundingRect(contour)
         hx, hy, hw, hh = human_mask_bb
         #cut_image_rgb = image_rgb[hy:hy+hh, hx:hx+hw]
@@ -132,42 +95,29 @@ class PointCloudGenerator:
                     [0, 0, 0, 1]])
 
         downpcd = pcd.voxel_down_sample(voxel_size=2)
-
         return downpcd
-        
 
-    def process_frame(self, frame):
+
+    def run_step(self, depth_image):
         """Process a single frame from the webcam.
         This method can be overridden to implement custom frame processing.
         """
+        depth_image = cv2.resize(depth_image, (256, 256))
+        pcd = self.create_point_cloud(depth_image, equal_his=False)
 
-        depth = self.depth_estimator.predict(frame)
-        depth = cv2.resize(depth, (256, 256))
-        pcd = self.create_point_cloud(frame, depth, equal_his=False)
+        if self._visualize:
+            if not self.is_point_cloud_created:
+                self.vis.add_geometry(pcd)
+                self.is_point_cloud_created = True
+                self.pcd_placeholder = pcd
+            else:
+                # Update points and colors of the existing point cloud
+                self.pcd_placeholder.points = pcd.points
+                self.pcd_placeholder.colors = pcd.colors
 
-        if not self.is_point_cloud_created:
-            self.vis.add_geometry(pcd)
-            self.is_point_cloud_created = True
-            self.pcd_placeholder = pcd 
-        else:
-            # Update points and colors of the existing point cloud
-            self.pcd_placeholder.points = pcd.points
-            self.pcd_placeholder.colors = pcd.colors
+            # Display the frame
+            self.vis.update_geometry(self.pcd_placeholder)
+            self.vis.poll_events()
+            self.vis.update_renderer()
 
-        # Display the frame
-        self.vis.update_geometry(self.pcd_placeholder)
-        self.vis.poll_events()
-        self.vis.update_renderer()
-
-        cv2.imshow('Webcam', frame)
-        cv2.imshow('Webcam', depth)
-
-
-
-def test_component():
-    """Main function to be executed from the terminal."""
-    generator = PointCloudGenerator()
-    generator.generate()
-
-if __name__ == "__main__":
-    test_component()
+        return pcd
