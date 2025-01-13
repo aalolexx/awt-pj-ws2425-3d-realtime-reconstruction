@@ -14,9 +14,9 @@ from torch.utils.data import DataLoader, Dataset, random_split, Subset, SubsetRa
 THE AUTO ENCODER MODEL
 """
 
-class PointCloudAutoEncoder(nn.Module):
+class MaskedPointCloudEncoderDecoder(nn.Module):
     def __init__(self, input_dim=32):
-        super(PointCloudAutoEncoder, self).__init__()
+        super(MaskedPointCloudEncoderDecoder, self).__init__()
 
         # Encoder: Maps input point cloud to a latent representation
         self.encoder = nn.Sequential(
@@ -370,11 +370,11 @@ START ACTUAL TRAINING
 """
 
 # Initialize model, optimizer
-epochs = 15
+epochs = 20
 learning_rate = 1e-3
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
-model = PointCloudAutoEncoder()
+model = MaskedPointCloudEncoderDecoder()
 model.to(device)
 
 # Train with grund truth

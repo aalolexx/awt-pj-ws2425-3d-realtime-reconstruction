@@ -7,11 +7,15 @@ from rich.table import Table
 from rich.live import Live
 from rich import box
 import time
+import open3d as o3d
 
 from components.pc_generator.DepthEstimator import DepthEstimator
 from components.pc_generator.PointCloudGenerator import PointCloudGenerator
+from components.pc_generator.ForegroundExtractor import ForegroundExtractor
 
+# Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
+foreground_extractor = ForegroundExtractor(visualize=True)
 pointcloud_generator = PointCloudGenerator(visualize=True)
 
 # Prepare Webcam
@@ -20,14 +24,27 @@ cap = cv2.VideoCapture(0)
 """
  CONSOLE PRINTING FUNCTIONS
 """
-def create_console_pipeline(data):
+def create_console_pipeline(data, active_module_idx):
     """Create a table representing the pipeline with 3 boxes."""
     table = Table(title="Pipeline", box=box.ROUNDED)
-    table.add_column("Stage", justify="left")
-    table.add_column("Value (MS)", justify="left")
-    table.add_row("[bold cyan]Frame Captured[/bold cyan]", f"[bold green]{data[0]:.4f}[/bold green]")
-    table.add_row("[bold cyan]Depth Estimator[/bold cyan]", f"[bold green]{data[1]:.4f}[/bold green]")
-    table.add_row("[bold cyan]PCD Generator[/bold cyan]", f"[bold green]{data[2]:.4f}[/bold green]")
+    table.add_column("Module", justify="left")
+    table.add_column("Time (MS)", justify="left")
+    table.add_row("[bold cyan]Frame Captured[/bold cyan]",
+                  f"[bold green]{data[0]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 0 else ''}"
+                  )
+    table.add_row("[bold cyan]Depth Estimator[/bold cyan]",
+                  f"[bold green]{data[1]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 1 else ''}"
+                  )
+    table.add_row("[bold cyan]Foreground Extractor[/bold cyan]",
+                  f"[bold green]{data[2]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 2 else ''}"
+                  )
+    table.add_row("[bold cyan]PCD Generator[/bold cyan]",
+                  f"[bold green]{data[3]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 3 else ''}"
+                  )
     return table
 
 """
@@ -40,11 +57,16 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0]
-    with Live(create_console_pipeline(time_per_module), refresh_per_second=4, console=console) as live: # for console updates
+    time_per_module = [0, 0, 0, 0]
+    count = 0
+
+    with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
         while True:
+            count += 1
             # ------------------------------
             # Run actual Pipeline
+
+            live.update(create_console_pipeline(time_per_module, 0))
 
             # Capture frame-by-frame
             start_time = time.perf_counter()
@@ -56,20 +78,32 @@ def run_pipeline():
             elapsed_time = time.perf_counter() - start_time
             time_per_module[0] = elapsed_time * 1000
 
+            live.update(create_console_pipeline(time_per_module, 1))
+
             # Depth Estimation
             start_time = time.perf_counter()
             depth_image = depth_estimator.run_step(frame)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[1] = elapsed_time * 1000
 
-            # Incomplete PCD Estimation
+            live.update(create_console_pipeline(time_per_module, 2))
+
+            # Foreground Extraction Model
             start_time = time.perf_counter()
-            pcd = pointcloud_generator.run_step(depth_image)
+            foreground_mask = foreground_extractor.run_step(frame)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[2] = elapsed_time * 1000
 
-            # Update Console Interface
-            live.update(create_console_pipeline(time_per_module))
+            live.update(create_console_pipeline(time_per_module, 3))
+
+            # Incomplete PCD Estimation
+            start_time = time.perf_counter()
+            pcd = pointcloud_generator.run_step(foreground_mask, depth_image)
+            elapsed_time = time.perf_counter() - start_time
+            time_per_module[3] = elapsed_time * 1000
+
+            if count % 3 == 0 and pcd is not None:
+                o3d.io.write_point_cloud(f"PCD_ESTIMATED_FRAME_{count}.ply", pcd)
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
