@@ -90,6 +90,52 @@ COMBINED LOSS
 #    dice = (2. * intersection + smooth) / (pred.sum() + target.sum() + smooth)
 #    return 1 - dice
 
+#
+# IoU Loss
+#
+class IoULoss(nn.Module):
+    def __init__(self, eps=1e-6):
+        super(IoULoss, self).__init__()
+        self.eps = eps  # Small constant to avoid division by zero
+
+    def forward(self, preds, targets):
+        # Ensure preds are within [0, 1] range
+        preds = torch.clamp(preds, 0, 1)
+        intersection = torch.sum(preds * targets)
+        union = torch.sum(preds + targets) - intersection
+        iou = (intersection + self.eps) / (union + self.eps)
+        iou_loss = 1 - iou
+        return iou_loss
+
+
+#
+# Voxel Loss Count
+#
+class VoxelCountLoss(nn.Module):
+    def __init__(self, target_ratio=2.0):
+        """
+        Custom loss combining IoU loss with a voxel count penalty.
+
+        Args:
+            target_ratio (float): Target ratio of predicted voxels to input voxels.
+        """
+        super(VoxelCountLoss, self).__init__()
+        self.target_ratio = target_ratio
+
+    def forward(self, pred, input_voxels):
+        # Compute the count penalty
+        pred_count = torch.sum(pred, dim=[1, 2, 3, 4])  # Predicted voxel count
+        input_count = torch.sum(input_voxels, dim=[1, 2, 3, 4])  # Input voxel count
+        # Desired voxel count
+        target_count = self.target_ratio * input_count
+        # Normalize count penalty by total grid size
+        grid_size = pred[0].numel()  # Total number of voxels per grid (C * D * H * W)
+        count_penalty = torch.abs(pred_count - target_count) / grid_size
+        count_penalty = count_penalty.mean()
+        return count_penalty
+
+
+"""
 def masked_loss_with_gaussian(original_input, pred, target):
     # Mask for non-zero voxels in the target (which are the original valid ones)
     mask = original_input == 1  # Voxel is 1 in the target
@@ -107,17 +153,29 @@ def masked_loss_with_gaussian(original_input, pred, target):
     loss_mse = loss_mse * (~mask)
     loss_bce = loss_bce * (~mask)
     return loss_mse.mean() + loss_bce.mean()
+"""
 
 
 def masked_loss_binary(original_input, pred, target):
+    # IoU Loss
+    iou_loss_fn = IoULoss()
+    loss_iou = iou_loss_fn(pred, target)
+
+    # Voxel Count Loss
+    voxel_count_loss_fn = VoxelCountLoss()
+    count_loss = voxel_count_loss_fn(pred, original_input)
+
+    # Masked BCE Loss
     # Mask for non-zero voxels in the target (which are the original valid ones)
     mask = original_input > 0.8  # Voxel is 1 in the target
 
     loss_fn_bce = nn.BCELoss(reduction='none')
     loss_bce = loss_fn_bce(pred, target)
 
+    # Combine all losses
     loss = loss_bce * (~mask)
-    return loss.mean()
+    combined_loss = loss.mean() + (count_loss * 0.5) + (loss_iou * 0.5)
+    return combined_loss
 
 
 """
@@ -288,7 +346,7 @@ def train_with_ground_truth(model, optimizer, train_loader, val_loader, epochs=5
         for incomplete_pc, ground_truth_pc in train_loader:
 
             # process loging
-            if batch_index % 20 == 0:
+            if batch_index % 50 == 0:
                 print(f"epoch {epoch} progress {batch_index}/{total_length}")
             batch_index += 1
 
@@ -342,15 +400,15 @@ def train_with_ground_truth(model, optimizer, train_loader, val_loader, epochs=5
 LOAD TRAINING SET
 """
  # Dataset root directory
-root_dir = "../../../datasets/voxel10000"
+root_dir = "../../../datasets/voxel_new"
 
 # Create dataset and dataloaders
 full_dataset = VoxelGridDataset(root_dir=root_dir, split="train")
 
 #limit to 10k
-indices = np.random.choice(len(full_dataset), size=10000, replace=False)
-trainset_to_use = Subset(full_dataset, indices)
-#trainset_to_use = full_dataset
+#indices = np.random.choice(len(full_dataset), size=10000, replace=False)
+#trainset_to_use = Subset(full_dataset, indices)
+trainset_to_use = full_dataset
 
 # Define the split ratio (e.g., 80% train, 20% validation)
 train_size = int(0.8 * len(trainset_to_use))
@@ -370,7 +428,7 @@ START ACTUAL TRAINING
 """
 
 # Initialize model, optimizer
-epochs = 20
+epochs = 25
 learning_rate = 1e-3
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
