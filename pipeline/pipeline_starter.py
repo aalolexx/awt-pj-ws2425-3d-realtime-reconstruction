@@ -12,18 +12,25 @@ import open3d as o3d
 from components.pc_generator.DepthEstimator import DepthEstimator
 from components.pc_generator.PointCloudGenerator import PointCloudGenerator
 from components.pc_generator.ForegroundExtractor import ForegroundExtractor
+from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
 
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
-foreground_extractor = ForegroundExtractor(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=True)
+foreground_extractor = ForegroundExtractor(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=False)
+pointcloud_reconstructor = PointCloudReconstructor(
+                            model_name="MaskedPointCloudEncoderDecoder",
+                            checkpoint_name="state_dict_alex_model_v2.pth",
+                            visualize=True
+                           )
 
 # Prepare Webcam
 cap = cv2.VideoCapture(0)
 
-"""
- CONSOLE PRINTING FUNCTIONS
-"""
+
+###
+# CONSOLE PRINTING FUNCTIONS
+###
 def create_console_pipeline(data, active_module_idx):
     """Create a table representing the pipeline with 3 boxes."""
     table = Table(title="Pipeline", box=box.ROUNDED)
@@ -45,11 +52,16 @@ def create_console_pipeline(data, active_module_idx):
                   f"[bold green]{data[3]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 3 else ''}"
                   )
+    table.add_row("[bold cyan]ML Reconstruction[/bold cyan]",
+                  f"[bold green]{data[4]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 4 else ''}"
+                  )
     return table
 
-"""
-Run Pipeline
-"""
+
+###
+# Run Pipeline
+###
 
 def run_pipeline():
     """Continuously capture frames from webcam and process them."""
@@ -57,7 +69,7 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0, 0]
+    time_per_module = [0, 0, 0, 0, 0]
     count = 0
 
     with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
@@ -98,12 +110,20 @@ def run_pipeline():
 
             # Incomplete PCD Estimation
             start_time = time.perf_counter()
-            pcd = pointcloud_generator.run_step(foreground_mask, depth_image)
+            incomplete_pcd = pointcloud_generator.run_step(foreground_mask, depth_image)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[3] = elapsed_time * 1000
 
-            if count % 3 == 0 and pcd is not None:
-                o3d.io.write_point_cloud(f"PCD_ESTIMATED_FRAME_{count}.ply", pcd)
+            live.update(create_console_pipeline(time_per_module, 4))
+
+            # Incomplete PCD Estimation
+            start_time = time.perf_counter()
+            reconstructed_pcd = pointcloud_reconstructor.run_step(incomplete_pcd)
+            elapsed_time = time.perf_counter() - start_time
+            time_per_module[4] = elapsed_time * 1000
+
+            #if count % 3 == 0 and reconstructed_pcd is not None:
+            #    o3d.io.write_point_cloud(f"PCD_ESTIMATED_FRAME_{count}.ply", reconstructed_pcd)
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -8,7 +8,6 @@ from util.base_module import BaseModule
 # Add vendor directory to path
 vendor_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'vendor', 'Depth-Anything-V2'))
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
-print(vendor_dir)
 sys.path.append(vendor_dir)
 
 from depth_anything_v2.dpt import DepthAnythingV2

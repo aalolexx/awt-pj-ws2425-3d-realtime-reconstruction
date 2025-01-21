@@ -111,7 +111,7 @@ class PointCloudGenerator(BaseModule):
             if not self.is_point_cloud_created:
                 self.vis.add_geometry(pcd)
                 self.is_point_cloud_created = True
-                self.pcd_placeholder = pcd
+                self.pcd_placeholder = pcd # TODO aeh is the placeholder needed?
             else:
                 # Update points and colors of the existing point cloud
                 self.pcd_placeholder.points = pcd.points
