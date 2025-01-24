@@ -10,7 +10,6 @@ from util.base_module import BaseModule
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
 sys.path.append(model_dir)  # contains ModelClasses.py
 
-
 """
 Uses our custom made Models to reconstruct a incomplete point cloud (given from our PC_Generator)
 """
@@ -39,11 +38,15 @@ class PointCloudReconstructor(BaseModule):
     def run_step(self, pcd_incomplete):
         """Parse the pcd into a voxel grid and reconstruct it."""
         # Parse the PCD into a voxel grid
-        input_tensor = self.get_3d_tensor_from_pcd(pcd_incomplete).to(self._device)
+        #input_tensor = self.get_3d_tensor_from_pcd(pcd_incomplete).to(self._device)
+
+        normalized_pcd = self.normalize_anti_isotropic(pcd_incomplete)
+        input_tensor = self.pointcloud_to_tensor(normalized_pcd)
 
         self._rc_model.eval()
         with torch.no_grad():
-            input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Add batch dimension + channel
+            #input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Add batch dimension + channel
+            input_tensor = input_tensor.unsqueeze(0)
             reconstructed_tensor = self._rc_model(input_tensor)
             reconstructed_tensor = reconstructed_tensor.squeeze(0).squeeze(0).cpu()
 
@@ -52,6 +55,38 @@ class PointCloudReconstructor(BaseModule):
 
         return reconstructed_tensor
 
+
+    #
+    # normalizes point cloud to the borders of a (64x128x64) box
+    #
+    def normalize_anti_isotropic(self, pcd: o3d.geometry.PointCloud):
+        min_bound = pcd.get_min_bound()
+        max_bound = pcd.get_max_bound()
+        extents = max_bound - min_bound
+        scale_factors = []
+        for d in extents:
+            scale_factors.append(2.0 / d)
+
+        scale_factors = np.array(scale_factors)
+
+        scale_full = scale_factors * (31.5, 63.5, 31.5)
+        points = np.asarray(pcd.points)
+        points = points * scale_full
+        points = points + (32,64,32)
+        pcd.points = o3d.utility.Vector3dVector(np.around(points, decimals=4))
+        return pcd
+
+    #
+    # transforms pointcloud into tensor
+    #
+    def pointcloud_to_tensor(self, pcd):
+        input_volume = np.zeros((64,128,64), dtype=np.uint8)
+        input_points = np.asarray(pcd.points, dtype=np.uint8)
+        for (x, y, z) in input_points:
+            input_volume[x, y, z] = 1
+
+        input_tensor = torch.tensor(input_volume, dtype=torch.float32).unsqueeze(0)
+        return input_tensor
 
     #
     # parse the pcd into a voxel tensor
@@ -76,7 +111,7 @@ class PointCloudReconstructor(BaseModule):
     #
     # Visualize a 3D Tensor
     #
-    def visualize(self, voxel_tensor, threshold=0.5):
+    def visualize(self, voxel_tensor, threshold=0.1):
         voxel_tensor = voxel_tensor.cpu()
         normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
         occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)

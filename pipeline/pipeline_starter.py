@@ -19,8 +19,8 @@ depth_estimator = DepthEstimator(visualize=False)
 foreground_extractor = ForegroundExtractor(visualize=False)
 pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
-                            model_name="MaskedPointCloudEncoderDecoder",
-                            checkpoint_name="state_dict_alex_model_v2.pth",
+                            model_name="VoxelAutoEncoder",
+                            checkpoint_name="voxel_weights_6.pth",
                             visualize=True
                            )
 
