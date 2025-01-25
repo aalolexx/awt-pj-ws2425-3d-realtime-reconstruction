@@ -46,7 +46,7 @@ class PointCloudReconstructor(BaseModule):
         self._rc_model.eval()
         with torch.no_grad():
             #input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Add batch dimension + channel
-            input_tensor = input_tensor.unsqueeze(0)
+            input_tensor = input_tensor.unsqueeze(0).unsqueeze(0).to(self._device)
             reconstructed_tensor = self._rc_model(input_tensor)
             reconstructed_tensor = reconstructed_tensor.squeeze(0).squeeze(0).cpu()
 
@@ -60,16 +60,27 @@ class PointCloudReconstructor(BaseModule):
     # normalizes point cloud to the borders of a (64x128x64) box
     #
     def normalize_anti_isotropic(self, pcd: o3d.geometry.PointCloud):
+        if pcd is None:
+            return pcd
+        
+        if pcd.is_empty():
+            return pcd
+        
+        bounding_box = pcd.get_axis_aligned_bounding_box()
+        center = bounding_box.get_center()
+        pcd.translate(-center)
+
         min_bound = pcd.get_min_bound()
         max_bound = pcd.get_max_bound()
         extents = max_bound - min_bound
         scale_factors = []
+        
         for d in extents:
             scale_factors.append(2.0 / d)
 
         scale_factors = np.array(scale_factors)
-
         scale_full = scale_factors * (31.5, 63.5, 31.5)
+
         points = np.asarray(pcd.points)
         points = points * scale_full
         points = points + (32,64,32)
@@ -81,11 +92,13 @@ class PointCloudReconstructor(BaseModule):
     #
     def pointcloud_to_tensor(self, pcd):
         input_volume = np.zeros((64,128,64), dtype=np.uint8)
-        input_points = np.asarray(pcd.points, dtype=np.uint8)
-        for (x, y, z) in input_points:
-            input_volume[x, y, z] = 1
+        if not pcd is None:
+            if not pcd.is_empty():
+                input_points = np.asarray(pcd.points, dtype=np.uint8)
+                for (x, y, z) in input_points:
+                    input_volume[x, y, z] = 1
 
-        input_tensor = torch.tensor(input_volume, dtype=torch.float32).unsqueeze(0)
+        input_tensor = torch.tensor(input_volume, dtype=torch.float32)
         return input_tensor
 
     #
