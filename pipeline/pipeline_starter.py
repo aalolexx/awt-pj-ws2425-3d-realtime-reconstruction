@@ -25,8 +25,9 @@ pointcloud_reconstructor = PointCloudReconstructor(
                            )
 
 # Prepare Webcam
-cap = cv2.VideoCapture(0)
-
+#cap = cv2.VideoCapture(0)
+video_path = '../recordings/recording.avi'
+cap = cv2.VideoCapture(video_path)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
