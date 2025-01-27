@@ -19,32 +19,6 @@ class PointCloudGenerator(BaseModule):
             self.is_point_cloud_created = False
 
 
-    """
-    POST FILTER the point cloud, remove outliers
-    """
-    def apply_erosion_filter(self, point_cloud, radius=10, min_neighbors=10):
-        # Create KDTree
-        kdtree = o3d.geometry.KDTreeFlann(point_cloud)
-
-        # Precompute neighbors
-        points = np.asarray(point_cloud.points)
-        num_points = points.shape[0]
-        neighbors_count = np.zeros(num_points, dtype=int)
-
-        for i in range(num_points):
-            _, idx, _ = kdtree.search_radius_vector_3d(point_cloud.points[i], radius)
-            neighbors_count[i] = len(idx)  # Count neighbors
-
-        # Filter points
-        mask = neighbors_count > min_neighbors
-        filtered_points = points[mask]
-
-        # Create a new point cloud with the filtered points
-        filtered_point_cloud = o3d.geometry.PointCloud()
-        filtered_point_cloud.points = o3d.utility.Vector3dVector(filtered_points)
-
-        return filtered_point_cloud
-
     def create_point_cloud(self, foreground_mask, image_depth, equal_his=False, depth_threshold=0.1):
         # Convert depth to 3D points without perspective scaling
         if equal_his:
@@ -89,7 +63,16 @@ class PointCloudGenerator(BaseModule):
         downpcd = pcd.voxel_down_sample(voxel_size=2)
 
         # POST PROCESSING
-        downpcd = self.apply_erosion_filter(downpcd, radius=5, min_neighbors=5)
+        downpcd, _ = downpcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=0.25)  # remove "noisy" outliers
+        downpcd, _ = downpcd.remove_radius_outlier(nb_points=50, radius=15)  # remove big satellites
+
+        # Apply DBSCAN clustering (only use biggest point cluster)
+        labels = np.array(downpcd.cluster_dbscan(eps=10, min_points=50))
+        if labels.max() > 0 and downpcd.has_points():
+            largest_cluster_label = np.argmax(np.bincount(labels[labels >= 0]))
+            largest_cluster_indices = np.where(labels == largest_cluster_label)[0]
+            largest_cluster = downpcd.select_by_index(largest_cluster_indices)
+            downpcd = largest_cluster
 
         return downpcd
 
