@@ -1,4 +1,7 @@
 assets/
+scripts/dawid_temp
+scripts/alex
+vendor/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
