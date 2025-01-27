@@ -124,7 +124,7 @@ class PointCloudReconstructor(BaseModule):
     #
     # Visualize a 3D Tensor
     #
-    def visualize(self, voxel_tensor, threshold=0.1):
+    def visualize(self, voxel_tensor, threshold=0.15):
         voxel_tensor = voxel_tensor.cpu()
         normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
         occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)
