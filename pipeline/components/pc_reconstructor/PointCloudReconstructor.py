@@ -71,7 +71,7 @@ class PointCloudReconstructor(BaseModule):
             suppressed = suppressed + input_tensor
 
             suppressed_np = suppressed.squeeze().cpu().numpy()
-            suppressed_out = np.argwhere(suppressed_np > 0.2)
+            suppressed_out = np.argwhere(suppressed_np > 0.15)
             suppressed_outputs = np.array(suppressed_out, dtype=np.float32)  # Shape: [N, 3]
             point_cloud_suppressed = o3d.geometry.PointCloud()
             point_cloud_suppressed.points = o3d.utility.Vector3dVector(suppressed_outputs)
