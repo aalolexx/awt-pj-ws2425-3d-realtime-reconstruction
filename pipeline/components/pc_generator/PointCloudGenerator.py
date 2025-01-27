@@ -90,7 +90,6 @@ class PointCloudGenerator(BaseModule):
 
         # POST PROCESSING
         downpcd = self.apply_erosion_filter(downpcd, radius=5, min_neighbors=5)
-        downpcd = self.apply_erosion_filter(downpcd, radius=5, min_neighbors=5)
 
         return downpcd
 
