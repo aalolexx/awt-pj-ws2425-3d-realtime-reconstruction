@@ -4,11 +4,20 @@ import sys
 import importlib
 import open3d as o3d
 import numpy as np
+import torch.nn.functional as F
 
 from util.base_module import BaseModule
 
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
 sys.path.append(model_dir)  # contains ModelClasses.py
+min_bound = np.array([0, 0, 0])
+max_bound = np.array([64, 128, 64])
+aabb = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
+aabb.color = (1, 0, 0)
+
+
+def draw_pointcloud_bbox(pcd, title):
+    o3d.visualization.draw_geometries([pcd, aabb], window_name=title, point_show_normal=False)
 
 """
 Uses our custom made Models to reconstruct a incomplete point cloud (given from our PC_Generator)
@@ -41,6 +50,7 @@ class PointCloudReconstructor(BaseModule):
         #input_tensor = self.get_3d_tensor_from_pcd(pcd_incomplete).to(self._device)
 
         normalized_pcd = self.normalize_anti_isotropic(pcd_incomplete)
+        #draw_pointcloud_bbox(normalized_pcd, "input")
         input_tensor = self.pointcloud_to_tensor(normalized_pcd)
 
         self._rc_model.eval()
@@ -48,12 +58,31 @@ class PointCloudReconstructor(BaseModule):
             #input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Add batch dimension + channel
             input_tensor = input_tensor.unsqueeze(0).unsqueeze(0).to(self._device)
             reconstructed_tensor = self._rc_model(input_tensor)
-            reconstructed_tensor = reconstructed_tensor.squeeze(0).squeeze(0).cpu()
+            reconstructed_tensor.cpu()
+            #reconstructed_tensor = reconstructed_tensor.squeeze(0).squeeze(0).cpu()
+
+            #occupied_outputs = np.argwhere(reconstructed_tensor > 0.2)
+            x_padded = F.pad(reconstructed_tensor, pad=(0, 1, 0, 1, 0, 1), mode='constant', value=0)
+
+            # ======= Non Maxima Suppression =======================================================
+            pooled = F.max_pool3d(x_padded, kernel_size=2, stride=1, padding=0)
+            #pooled = F.max_pool3d(outputs, kernel_size=2, stride=1, padding=1)
+            mask = (reconstructed_tensor == pooled)
+            suppressed = reconstructed_tensor * mask.float()
+            suppressed = suppressed + input_tensor
+
+            suppressed_np = suppressed.squeeze().cpu().numpy()
+            suppressed_out = np.argwhere(suppressed_np > 0.15)
+            suppressed_outputs = np.array(suppressed_out, dtype=np.float32)  # Shape: [N, 3]
+            point_cloud_suppressed = o3d.geometry.PointCloud()
+            point_cloud_suppressed.points = o3d.utility.Vector3dVector(suppressed_outputs)
+
+            #draw_pointcloud_bbox(point_cloud_suppressed, "output")
 
         if self._visualize:
-            self.visualize(reconstructed_tensor)
+            self.visualize(point_cloud_suppressed)
 
-        return reconstructed_tensor
+        return point_cloud_suppressed
 
 
     #
@@ -124,12 +153,12 @@ class PointCloudReconstructor(BaseModule):
     #
     # Visualize a 3D Tensor
     #
-    def visualize(self, voxel_tensor, threshold=0.15):
-        voxel_tensor = voxel_tensor.cpu()
-        normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
-        occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)
-        point_cloud = o3d.geometry.PointCloud()
-        point_cloud.points = o3d.utility.Vector3dVector(occupied_indices)
+    def visualize(self, point_cloud, threshold=0.15):
+        #voxel_tensor = voxel_tensor.cpu()
+        #normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
+        #occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)
+        #point_cloud = o3d.geometry.PointCloud()
+        #point_cloud.points = o3d.utility.Vector3dVector(occupied_indices)
 
         if not self.is_point_cloud_created:
             self.vis.add_geometry(point_cloud)

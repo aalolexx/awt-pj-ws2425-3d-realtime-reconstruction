@@ -17,7 +17,7 @@ from components.pc_reconstructor.PointCloudReconstructor import PointCloudRecons
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
 foreground_extractor = ForegroundExtractor(visualize=False)
-pointcloud_generator = PointCloudGenerator(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="SmallUnetAutoEncoder",
                             checkpoint_name="small_unet_auto_encoder.pth",
@@ -26,8 +26,10 @@ pointcloud_reconstructor = PointCloudReconstructor(
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
-video_path = '../recordings/recording.avi'
-cap = cv2.VideoCapture(video_path)
+video_path = "../recordings/recording.avi"
+video_path2 = "../recordings/recording2.mp4"
+video_path3 = "../recordings/recording3.mp4"
+cap = cv2.VideoCapture(video_path3)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
