@@ -47,6 +47,7 @@ class PointCloudReconstructor(BaseModule):
         with torch.no_grad():
             #input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)  # Add batch dimension + channel
             input_tensor = input_tensor.unsqueeze(0)
+            input_tensor = input_tensor.to(self._device)
             reconstructed_tensor = self._rc_model(input_tensor)
             reconstructed_tensor = reconstructed_tensor.squeeze(0).squeeze(0).cpu()
 
@@ -60,6 +61,10 @@ class PointCloudReconstructor(BaseModule):
     # normalizes point cloud to the borders of a (64x128x64) box
     #
     def normalize_anti_isotropic(self, pcd: o3d.geometry.PointCloud):
+        bounding_box = pcd.get_axis_aligned_bounding_box()
+        center = bounding_box.get_center()
+        pcd.translate(-center)
+
         min_bound = pcd.get_min_bound()
         max_bound = pcd.get_max_bound()
         extents = max_bound - min_bound
