@@ -10,12 +10,13 @@ from util.base_module import BaseModule
 
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
 sys.path.append(model_dir)  # contains ModelClasses.py
+min_bound = np.array([0, 0, 0])
+max_bound = np.array([64, 128, 64])
+aabb = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
+aabb.color = (1, 0, 0)
+
 
 def draw_pointcloud_bbox(pcd, title):
-    min_bound = np.array([0, 0, 0])
-    max_bound = np.array([64, 128, 64])
-    aabb = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
-    aabb.color = (1, 0, 0)
     o3d.visualization.draw_geometries([pcd, aabb], window_name=title, point_show_normal=False)
 
 """
@@ -49,7 +50,7 @@ class PointCloudReconstructor(BaseModule):
         #input_tensor = self.get_3d_tensor_from_pcd(pcd_incomplete).to(self._device)
 
         normalized_pcd = self.normalize_anti_isotropic(pcd_incomplete)
-        draw_pointcloud_bbox(normalized_pcd, "input")
+        #draw_pointcloud_bbox(normalized_pcd, "input")
         input_tensor = self.pointcloud_to_tensor(normalized_pcd)
 
         self._rc_model.eval()
@@ -76,11 +77,12 @@ class PointCloudReconstructor(BaseModule):
             point_cloud_suppressed = o3d.geometry.PointCloud()
             point_cloud_suppressed.points = o3d.utility.Vector3dVector(suppressed_outputs)
 
-            draw_pointcloud_bbox(point_cloud_suppressed, "output")
-        #if self._visualize:
-        #    self.visualize(reconstructed_tensor)
+            #draw_pointcloud_bbox(point_cloud_suppressed, "output")
 
-        return reconstructed_tensor
+        if self._visualize:
+            self.visualize(point_cloud_suppressed)
+
+        return point_cloud_suppressed
 
 
     #
@@ -151,25 +153,23 @@ class PointCloudReconstructor(BaseModule):
     #
     # Visualize a 3D Tensor
     #
-    def visualize(self, voxel_tensor, threshold=0.15):
-        voxel_tensor = voxel_tensor.cpu()
-        normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
-        occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)
-        point_cloud = o3d.geometry.PointCloud()
-        point_cloud.points = o3d.utility.Vector3dVector(occupied_indices)
+    def visualize(self, point_cloud, threshold=0.15):
+        #voxel_tensor = voxel_tensor.cpu()
+        #normalized_tensor = torch.where(voxel_tensor > threshold, 1, 0)
+        #occupied_indices = np.argwhere(normalized_tensor.numpy() > 0)
+        #point_cloud = o3d.geometry.PointCloud()
+        #point_cloud.points = o3d.utility.Vector3dVector(occupied_indices)
 
+        if not self.is_point_cloud_created:
+            self.vis.add_geometry(point_cloud)
+            self.is_point_cloud_created = True
+            self.pcd_placeholder = point_cloud  # TODO aeh is the placeholder needed?
+        else:
+            # Update points and colors of the existing point cloud
+            self.pcd_placeholder.points = point_cloud.points
+            self.pcd_placeholder.colors = point_cloud.colors
 
-
-        #if not self.is_point_cloud_created:
-        #    self.vis.add_geometry(point_cloud)
-        #    self.is_point_cloud_created = True
-        #    self.pcd_placeholder = point_cloud  # TODO aeh is the placeholder needed?
-        #else:
-        #    # Update points and colors of the existing point cloud
-        #    self.pcd_placeholder.points = point_cloud.points
-        #    self.pcd_placeholder.colors = point_cloud.colors
-#
-        ## Display the frame
-        #self.vis.update_geometry(self.pcd_placeholder)
-        #self.vis.poll_events()
-        #self.vis.update_renderer()
+        # Display the frame
+        self.vis.update_geometry(self.pcd_placeholder)
+        self.vis.poll_events()
+        self.vis.update_renderer()
