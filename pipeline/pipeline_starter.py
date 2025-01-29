@@ -13,6 +13,7 @@ from components.pc_generator.DepthEstimator import DepthEstimator
 from components.pc_generator.PointCloudGenerator import PointCloudGenerator
 from components.pc_generator.ForegroundExtractor import ForegroundExtractor
 from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
+from components.mesh_generator.MeshGenerator import MeshGenerator
 
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
@@ -23,6 +24,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="small_unet_auto_encoder.pth",
                             visualize=True
                            )
+mesh_generator = MeshGenerator(visualize=False)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
@@ -60,6 +62,10 @@ def create_console_pipeline(data, active_module_idx):
                   f"[bold green]{data[4]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 4 else ''}"
                   )
+    table.add_row("[bold cyan]Mesh Generation[/bold cyan]",
+                  f"[bold green]{data[5]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 5 else ''}"
+                  )
     return table
 
 
@@ -73,7 +79,7 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0, 0, 0]
+    time_per_module = [0, 0, 0, 0, 0, 0]
     count = 0
 
     with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
@@ -120,7 +126,7 @@ def run_pipeline():
 
             live.update(create_console_pipeline(time_per_module, 4))
 
-            # Incomplete PCD Estimation
+            # PCD Reconstruction
             start_time = time.perf_counter()
             reconstructed_pcd = pointcloud_reconstructor.run_step(incomplete_pcd)
             elapsed_time = time.perf_counter() - start_time
@@ -128,6 +134,13 @@ def run_pipeline():
 
             #if count % 3 == 0 and reconstructed_pcd is not None:
             #    o3d.io.write_point_cloud(f"PCD_ESTIMATED_FRAME_{count}.ply", reconstructed_pcd)
+
+            # Mesh Generation
+            start_time = time.perf_counter()
+            # Not tested yet
+            #reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
+            elapsed_time = time.perf_counter() - start_time
+            time_per_module[5] = elapsed_time * 1000
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
