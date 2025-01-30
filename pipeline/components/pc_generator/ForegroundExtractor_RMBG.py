@@ -11,9 +11,10 @@ from transformers import AutoModelForImageSegmentation
 from util.base_module import BaseModule
 
 class ForegroundExtractor(BaseModule):
-    def __init__(self, visualize=False):
+    def __init__(self, input_size=(512, 512), visualize=False):
         """Initialize the Foreground Extractor."""
         self._visualize = visualize
+        self._input_size = input_size
 
         self._rmbg_model = AutoModelForImageSegmentation.from_pretrained('briaai/RMBG-2.0', trust_remote_code=True)
         torch.set_float32_matmul_precision(['high', 'high'][0])
@@ -23,7 +24,7 @@ class ForegroundExtractor(BaseModule):
 
     def run_step(self, image):
         """Predict foreground from input."""
-        image_size = (512, 512)
+        image_size = self._input_size
         transform_image = transforms.Compose([
             transforms.Resize(image_size),
             transforms.ToTensor(),

@@ -7,16 +7,19 @@ from rich.table import Table
 from rich.live import Live
 from rich import box
 import time
+import numpy as np
 import open3d as o3d
 
 from components.pc_generator.DepthEstimator import DepthEstimator
 from components.pc_generator.PointCloudGenerator import PointCloudGenerator
-from components.pc_generator.ForegroundExtractor import ForegroundExtractor
+from components.pc_generator.ForegroundExtractor_RMBG import ForegroundExtractor
+from components.pc_generator.DepthThresholder import DepthThresholder
 from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
 
 # Initialize the Pipeline Modules
-depth_estimator = DepthEstimator(visualize=False)
-foreground_extractor = ForegroundExtractor(visualize=False)
+depth_estimator = DepthEstimator(visualize=True)
+#foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
+depth_thresholder = DepthThresholder(visualize=True)
 pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="SmallUnetAutoEncoder",
@@ -30,7 +33,7 @@ video_path = "../recordings/recording.avi"
 video_path2 = "../recordings/recording2.mp4"
 video_path3 = "../recordings/recording3.mp4"
 video_path4 = "../recordings/recording4.mp4"
-cap = cv2.VideoCapture(video_path4)
+cap = cv2.VideoCapture(video_path2)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
@@ -62,6 +65,16 @@ def create_console_pipeline(data, active_module_idx):
                   )
     return table
 
+
+def is_foreground_ok(foreground_mask):
+    white_pixels = np.sum(foreground_mask == 255)
+    total_pixels = foreground_mask.size  # Total number of pixels in the mask
+    white_percentage = (white_pixels / total_pixels) * 100
+    return white_percentage > 5  # 5 percent
+
+
+def is_depth_ok(depth_image):
+    return not np.all(depth_image == 0)
 
 ###
 # Run Pipeline
@@ -106,11 +119,17 @@ def run_pipeline():
 
             # Foreground Extraction Model
             start_time = time.perf_counter()
-            foreground_mask = foreground_extractor.run_step(frame)
+            foreground_mask = depth_thresholder.run_step(frame)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[2] = elapsed_time * 1000
 
             live.update(create_console_pipeline(time_per_module, 3))
+
+            # CHECKER -> If foreground mask is broken, don't update the 3d pcd
+            #if not is_foreground_ok(foreground_mask):
+            #    time_per_module[3] = 0
+            #    time_per_module[4] = 0
+            #    continue
 
             # Incomplete PCD Estimation
             start_time = time.perf_counter()

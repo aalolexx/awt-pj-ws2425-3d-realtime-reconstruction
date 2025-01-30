@@ -35,7 +35,6 @@ class PointCloudGenerator(BaseModule):
         height = np.shape(depth)[0]
 
         depth = np.where(foreground_mask > 1, depth, 0)
-        cv2.imshow("masked depth", depth)
 
         # Generate a 3D point grid
         u, v = np.meshgrid(np.arange(width), np.arange(height))
