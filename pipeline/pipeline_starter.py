@@ -21,7 +21,7 @@ from components.mesh_generator.MeshGenerator import MeshGenerator
 depth_estimator = DepthEstimator(visualize=True)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
 depth_thresholder = DepthThresholder(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="SmallUnetAutoEncoder",
                             checkpoint_name="small_unet_auto_encoder.pth",
@@ -35,7 +35,8 @@ video_path = "../recordings/recording.avi"
 video_path2 = "../recordings/recording2.mp4"
 video_path3 = "../recordings/recording3.mp4"
 video_path4 = "../recordings/recording4.mp4"
-cap = cv2.VideoCapture(video_path2)
+video_path5 = "../recordings/recording5.mp4"
+cap = cv2.VideoCapture(video_path5)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
@@ -125,17 +126,17 @@ def run_pipeline():
 
             # Foreground Extraction Model
             start_time = time.perf_counter()
-            foreground_mask = depth_thresholder.run_step(frame)
+            foreground_mask = depth_thresholder.run_step(depth_image)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[2] = elapsed_time * 1000
 
             live.update(create_console_pipeline(time_per_module, 3))
 
             # CHECKER -> If foreground mask is broken, don't update the 3d pcd
-            #if not is_foreground_ok(foreground_mask):
-            #    time_per_module[3] = 0
-            #    time_per_module[4] = 0
-            #    continue
+            if not is_foreground_ok(foreground_mask):
+                time_per_module[3] = 0
+                time_per_module[4] = 0
+                continue
 
             # Incomplete PCD Estimation
             start_time = time.perf_counter()

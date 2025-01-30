@@ -15,48 +15,27 @@ class DepthThresholder(BaseModule):
 
     def run_step(self, frame):
         """Predict foreground from input."""
-        #depth_map = depth_image.copy()
+        depth_copy = frame.copy()
 
-        #scale_factor = 0.5  # Adjust this value as needed
-        #new_size = (int(depth_map.shape[1] * scale_factor), int(depth_map.shape[0] * scale_factor))
-        #depth_map = cv2.resize(depth_map, new_size)
+        _, mask = cv2.threshold(depth_copy, 0.6, 1, cv2.THRESH_BINARY)
+        mask = mask.astype(np.uint8)
 
-        # Extract the foreground object
-        mask = self.extract_foreground_with_grabcut(frame)
+        contours, hierarchy = cv2.findContours(image=mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
 
-        cv2.imwrite('frame.jpg', frame)
-        cv2.imwrite('mask.jpg', mask)
+        centeroids = [np.mean(contour, axis=0) for contour in contours]
+        #target_point = [int(mask.shape[1] / 2), int(mask.shape[0] / (3/2))]
+        image_center = np.asarray(mask.shape) / 2
+
+        most_central_centeroid_idx = np.argmin([np.linalg.norm(c - image_center) for c in centeroids])
+        #biggest_contour_idx = np.argmax([cv2.contourArea(c) for c in contours])
+
+
+        final_mask = np.zeros(mask.shape)
+        cv2.drawContours(image=final_mask, contours=contours, contourIdx=most_central_centeroid_idx, color=(255),
+                         thickness=cv2.FILLED)
 
         if self._visualize:
-            cv2.imshow('foreground mask', mask)
+            cv2.imshow('foreground mask', final_mask)
 
-        return mask
-
-
-    def extract_foreground_with_grabcut(self, frame):
-        # Ensure the depth map is a NumPy array and normalize it for visualization
-        frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-        # Convert the single-channel depth map to a 3-channel image
-        #frame_3ch = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-
-        # Initialize the mask
-        mask = np.ones(frame.shape[:2], np.uint8) * 2  # Initialize all pixels as probable background
-
-        # Assume the center region is more likely to be foreground
-        height, width = frame.shape[:2]
-        rect = (width // 4, height // 4, width // 2, height // 2)
-        mask[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]] = 3  # Mark probable foreground
-
-        # Initialize background and foreground models
-        bgd_model = np.zeros((1, 65), np.float64)
-        fgd_model = np.zeros((1, 65), np.float64)
-
-        # Apply the GrabCut algorithm
-        cv2.grabCut(frame, mask, rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_RECT)
-
-        # Convert mask to binary: 1 (foreground), 0 (background)
-        mask_foreground = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-
-        return mask_foreground
+        return final_mask
 
