@@ -73,3 +73,128 @@ dmypy.json
 *.DS_Store
 *.directory
 Thumbs.db
+
+# Unity specific files
+[Dd]ebug/
+[Dd]ebugFiles/
+[Dd]ist/
+[Ll]ibrary/
+[Ll]ogs/
+[Tt]emp/
+[Tt]emplate/
+
+# User-specific files
+.vs/
+.idea/
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build results
+Build/
+Builds/
+
+# User-specific preferences
+UserSettings/
+
+# Generated Unity asset files
+sysinfo.txt
+*.bak
+*.swp
+
+# Visual Studio for Mac
+.vscode/
+.idea/
+
+# Rider
+.idea/
+
+# JetBrains Rider
+.idea/
+
+# Windows Installer
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Xcode
+xcuserdata/
+
+# Android Studio
+.idea/
+
+# Windows Thumbnail Cache
+Thumbs.db
+
+# Windows Installer Files
+*.cab
+*.msi
+*.msp
+*.msm
+
+#
+# FOR UNITY
+#
+# Unity specific files
+[Dd]ebug/
+[Dd]ebugFiles/
+[Dd]ist/
+[Ll]ibrary/
+[Ll]ogs/
+[Tt]emp/
+[Tt]emplate/
+
+# User-specific files
+.vs/
+.idea/
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build results
+Build/
+Builds/
+
+# User-specific preferences
+UserSettings/
+
+# Generated Unity asset files
+sysinfo.txt
+*.bak
+*.swp
+
+# Visual Studio for Mac
+.vscode/
+.idea/
+
+# Rider
+.idea/
+
+# JetBrains Rider
+.idea/
+
+# Windows Installer
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Xcode
+xcuserdata/
+
+# Android Studio
+.idea/
+
+# Windows Thumbnail Cache
+Thumbs.db
+
+# Windows Installer Files
+*.cab
+*.msi
+*.msp
+*.msm
