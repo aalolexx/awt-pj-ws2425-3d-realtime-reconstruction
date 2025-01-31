@@ -10,20 +10,33 @@ class MeshGenerator(BaseModule):
     def __init__(self, visualize=False):
         self._visualize = visualize
 
+        '''if self._visualize:
+            self.vis = o3d.visualization.Visualizer()
+            self.vis.create_window(width=800, height=600)
+            self.is_mesh_created = False'''
+
 
     #
     # Run Step
     #
     def run_step(self, pcd_completed):
-        return self.ball_pivoting(pcd_completed)
+        mesh = self.ball_pivoting(pcd_completed)
+
+        if self._visualize:
+            o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+
+        return mesh
     
 
     #
     # Ball pivoting
     #
     def ball_pivoting(self, pcd):
-        self.estimate_normals(pcd)
-
+        #self.estimate_normals(pcd)
+        #pcd = pcd.voxel_down_sample(voxel_size=0.1)
+        pcd.estimate_normals()
+        pcd.orient_normals_to_align_with_direction(np.array([0., 0., 1.]))
+        pcd.orient_normals_consistent_tangent_plane(10)
         min_bound = pcd.get_min_bound()
         max_bound = pcd.get_max_bound()
         size = max_bound - min_bound
@@ -32,15 +45,26 @@ class MeshGenerator(BaseModule):
         distances = pcd.compute_nearest_neighbor_distance()
         avg_distance = np.mean(distances)
         print(f"Average distance between points: {avg_distance}")
-
+        radius = 1.5 * avg_distance
         radii = [1, 1.5, 2, 3, 4, 5]  # Define radii for BPA, adjust based on scale of your point cloud
+        #o3d.visualization.draw_geometries([pcd], point_show_normal=True)
         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
             pcd,
-            o3d.utility.DoubleVector(radii)
+            o3d.utility.DoubleVector([radius, 2*radius])
         )
+        '''
+        with o3d.utility.VerbosityContextManager(
+                o3d.utility.VerbosityLevel.Debug) as cm:
+            mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+                pcd, depth=7)
+        vertices_to_remove = densities < np.quantile(densities, 0.08)
+        mesh.remove_vertices_by_mask(vertices_to_remove)
+        bbox = pcd.get_axis_aligned_bounding_box()
+        mesh_crop = mesh.crop(bbox)
+        mesh_crop.compute_triangle_normals()'''
 
-        mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
-        self.colorize_normals(mesh)
+        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
+        #self.colorize_normals(mesh)
 
         return mesh
 
@@ -85,3 +109,18 @@ class MeshGenerator(BaseModule):
             vertex_colors[i] = color  # Assign color based on normal
         # Set the colors to the mesh's vertices
         mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
+
+    def visualize(self, mesh):
+        if not self.is_mesh_created:
+            self.vis.add_geometry(mesh)
+            self.is_mesh_created = True
+            self.mesh_placeholder = mesh  # TODO aeh is the placeholder needed?
+        else:
+            # Update points and colors of the existing point cloud
+            self.mesh_placeholder.vertices = mesh.vertices
+            self.mesh_placeholder.triangles = mesh.triangles
+
+        # Display the frame
+        self.vis.update_geometry(self.mesh_placeholder)
+        self.vis.poll_events()
+        self.vis.update_renderer()

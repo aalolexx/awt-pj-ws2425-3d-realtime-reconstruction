@@ -27,7 +27,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="small_unet_auto_encoder.pth",
                             visualize=True
                            )
-mesh_generator = MeshGenerator(visualize=False)
+mesh_generator = MeshGenerator(visualize=True)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
@@ -158,7 +158,7 @@ def run_pipeline():
             # Mesh Generation
             start_time = time.perf_counter()
             # Not tested yet
-            #reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
+            reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[5] = elapsed_time * 1000
 
