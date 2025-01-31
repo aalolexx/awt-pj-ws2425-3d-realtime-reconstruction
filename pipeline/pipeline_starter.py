@@ -76,6 +76,10 @@ def create_console_pipeline(data, active_module_idx):
                   f"[bold green]{data[6]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 6 else ''}"
                   )
+    table.add_row("[bold cyan]Total Time[/bold cyan]",
+                  f"[bold green]{data[7]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 7 else ''}"
+                  )
     return table
 
 
@@ -99,7 +103,7 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0, 0, 0, 0, 0]
+    time_per_module = [0, 0, 0, 0, 0, 0, 0, 0]
     count = 0
 
     with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
@@ -177,6 +181,11 @@ def run_pipeline():
 
             live.update(create_console_pipeline(time_per_module, 6))
 
+            # calculate total time for a frame 
+            time_per_module[7] = 0
+            total_time = sum(time_per_module)
+            time_per_module[7] = total_time
+            live.update(create_console_pipeline(time_per_module, 7))
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
