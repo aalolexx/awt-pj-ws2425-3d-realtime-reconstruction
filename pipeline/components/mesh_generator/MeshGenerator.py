@@ -33,25 +33,21 @@ class MeshGenerator(BaseModule):
     #
     def ball_pivoting(self, pcd):
         #self.estimate_normals(pcd)
-        #pcd = pcd.voxel_down_sample(voxel_size=0.1)
+        pcd = pcd.voxel_down_sample(voxel_size=0.02)
         pcd.estimate_normals()
         pcd.orient_normals_to_align_with_direction(np.array([0., 0., 1.]))
         pcd.orient_normals_consistent_tangent_plane(10)
-        min_bound = pcd.get_min_bound()
-        max_bound = pcd.get_max_bound()
-        size = max_bound - min_bound
-        print(f"Point cloud size: {size}")
 
         distances = pcd.compute_nearest_neighbor_distance()
         avg_distance = np.mean(distances)
-        print(f"Average distance between points: {avg_distance}")
         radius = 1.5 * avg_distance
-        radii = [1, 1.5, 2, 3, 4, 5]  # Define radii for BPA, adjust based on scale of your point cloud
+        radii = [1*radius, 1.5*radius, 2*radius, 2.5*radius]  # Define radii for BPA, adjust based on scale of your point cloud
         #o3d.visualization.draw_geometries([pcd], point_show_normal=True)
         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
             pcd,
-            o3d.utility.DoubleVector([radius, 2*radius])
+            o3d.utility.DoubleVector(radii)
         )
+        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
         '''
         with o3d.utility.VerbosityContextManager(
                 o3d.utility.VerbosityLevel.Debug) as cm:
