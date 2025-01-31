@@ -16,18 +16,20 @@ from components.pc_generator.ForegroundExtractor_RMBG import ForegroundExtractor
 from components.pc_generator.DepthThresholder import DepthThresholder
 from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
 from components.mesh_generator.MeshGenerator import MeshGenerator
+from components.mesh_streamer.MeshStreamer import MeshStreamer
 
 # Initialize the Pipeline Modules
-depth_estimator = DepthEstimator(visualize=True)
+depth_estimator = DepthEstimator(visualize=False)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=True)
+depth_thresholder = DepthThresholder(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="SmallUnetAutoEncoder",
                             checkpoint_name="small_unet_auto_encoder.pth",
-                            visualize=True
+                            visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=True)
+mesh_generator = MeshGenerator(visualize=False)
+mesh_streamer = MeshStreamer(visualize=False, export_path="C:/dev/TU/ODS/shared-folder")
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
@@ -70,6 +72,10 @@ def create_console_pipeline(data, active_module_idx):
                   f"[bold green]{data[5]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 5 else ''}"
                   )
+    table.add_row("[bold cyan]Mesh Streaming[/bold cyan]",
+                  f"[bold green]{data[6]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 6 else ''}"
+                  )
     return table
 
 
@@ -93,7 +99,7 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0, 0, 0, 0]
+    time_per_module = [0, 0, 0, 0, 0, 0, 0]
     count = 0
 
     with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
@@ -157,10 +163,19 @@ def run_pipeline():
 
             # Mesh Generation
             start_time = time.perf_counter()
-            # Not tested yet
             reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[5] = elapsed_time * 1000
+
+            live.update(create_console_pipeline(time_per_module, 5))
+
+            # Mesh Streaming
+            start_time = time.perf_counter()
+            mesh_streamer.run_step(reconstructed_mesh)
+            elapsed_time = time.perf_counter() - start_time
+            time_per_module[6] = elapsed_time * 1000
+
+            live.update(create_console_pipeline(time_per_module, 6))
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):

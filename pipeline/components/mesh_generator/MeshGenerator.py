@@ -47,17 +47,8 @@ class MeshGenerator(BaseModule):
             pcd,
             o3d.utility.DoubleVector(radii)
         )
+
         #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
-        '''
-        with o3d.utility.VerbosityContextManager(
-                o3d.utility.VerbosityLevel.Debug) as cm:
-            mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-                pcd, depth=7)
-        vertices_to_remove = densities < np.quantile(densities, 0.08)
-        mesh.remove_vertices_by_mask(vertices_to_remove)
-        bbox = pcd.get_axis_aligned_bounding_box()
-        mesh_crop = mesh.crop(bbox)
-        mesh_crop.compute_triangle_normals()'''
 
         #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
         #self.colorize_normals(mesh)
