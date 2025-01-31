@@ -29,7 +29,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             visualize=False
                            )
 mesh_generator = MeshGenerator(visualize=False)
-mesh_streamer = MeshStreamer(visualize=False, export_path="C:/dev/TU/ODS/shared-folder")
+mesh_streamer = MeshStreamer(visualize=False)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)

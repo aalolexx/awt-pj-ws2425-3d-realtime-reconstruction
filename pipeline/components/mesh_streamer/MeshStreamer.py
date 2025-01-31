@@ -12,10 +12,9 @@ Streams the provided mesh as a web socket server
 
 
 class MeshStreamer(BaseModule):
-    def __init__(self, export_path, visualize=False):
+    def __init__(self, visualize=False):
         """Initialize the PointCloudReconstructor."""
         self._visualize = visualize
-        self._export_path = export_path
 
         HOST = '127.0.0.1'
         PORT = 65432
