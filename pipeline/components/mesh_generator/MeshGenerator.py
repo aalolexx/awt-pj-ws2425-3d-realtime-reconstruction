@@ -41,7 +41,7 @@ class MeshGenerator(BaseModule):
         pcd.orient_normals_consistent_tangent_plane(10)
 
         # BALL PIVOTING
-        """
+
         distances = pcd.compute_nearest_neighbor_distance()
         avg_distance = np.mean(distances)
         radius = 1.5 * avg_distance
@@ -51,9 +51,13 @@ class MeshGenerator(BaseModule):
             o3d.utility.DoubleVector(radii)
         )
         """
+        # FURTHER REMESHING
+        mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=8000)
+        mesh = mesh.filter_smooth_simple(number_of_iterations=2)
+        """
 
         # POISSON
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6)
+        #mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6)
 
         # MESH CLEANUP
         mesh.remove_duplicated_vertices()
@@ -61,16 +65,7 @@ class MeshGenerator(BaseModule):
         mesh.remove_degenerate_triangles()
         mesh.compute_vertex_normals()
         mesh.compute_triangle_normals()
-
-        # FURTHER REMESHING
         #mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=8000)
-        #mesh = mesh.filter_smooth_simple(number_of_iterations=2)
-        #mesh.compute_vertex_normals()
-
-        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
-
-        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
-        #self.colorize_normals(mesh)
 
         return mesh
 

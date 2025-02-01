@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -13,7 +14,7 @@ public class MeshUpdater : MonoBehaviour
     
     TcpClient client;
     NetworkStream stream;
-    byte[] buffer = new byte[2048 * 2048];
+    byte[] buffer = new byte[1024 * 1024];
     void Start()
     {
         meshFilter = GetComponent<MeshFilter>();
@@ -39,12 +40,11 @@ public class MeshUpdater : MonoBehaviour
             {
                 int bytesRead = stream.Read(buffer, 0, buffer.Length);
                 string objDataString = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Debug.Log(objDataString.Length);
+                //Debug.Log(objDataString);
                 Mesh mesh = ObjToMesh(objDataString);
                 if (mesh != null)
                 {
                     meshFilter.mesh = mesh;  // Update the mesh in Unity
-                    Debug.Log("Mesh updated.");
                 }
             }
             yield return null;
@@ -52,13 +52,14 @@ public class MeshUpdater : MonoBehaviour
     }
 
     // Convert OBJ file content to a Unity Mesh
-    // Convert OBJ file content to a Unity Mesh
+    // Convert OBJ file content to a Unity Mes
     Mesh ObjToMesh(string objData)
     {
         Mesh mesh = new Mesh();
-        var vertices = new System.Collections.Generic.List<Vector3>();
-        var normals = new System.Collections.Generic.List<Vector3>();
-        var triangles = new System.Collections.Generic.List<int>();
+        var vertices = new List<Vector3>();
+        var normals = new List<Vector3>();
+        var triangles = new List<int>();
+        var assignedNormals = new Vector3[vertices.Count];
 
         // Split the objData into lines
         string[] lines = objData.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
@@ -69,7 +70,7 @@ public class MeshUpdater : MonoBehaviour
             if (line.StartsWith("#"))
                 continue;
 
-            // Parse vertices (lines starting with 'v')
+            // Parse vertices (lines starting with 'v ')
             if (line.StartsWith("v "))
             {
                 try
@@ -83,12 +84,12 @@ public class MeshUpdater : MonoBehaviour
                         vertices.Add(new Vector3(x, y, z));
                     }
                 }
-                catch (FormatException e)
+                catch (System.Exception e)
                 {
                     Debug.LogError($"Error parsing vertex line: {line} | {e.Message}");
                 }
             }
-            // Parse vertex normals (lines starting with 'vn')
+            // Parse vertex normals (lines starting with 'vn ')
             else if (line.StartsWith("vn "))
             {
                 try
@@ -102,12 +103,12 @@ public class MeshUpdater : MonoBehaviour
                         normals.Add(new Vector3(nx, ny, nz));
                     }
                 }
-                catch (FormatException e)
+                catch (System.Exception e)
                 {
                     Debug.LogError($"Error parsing normal line: {line} | {e.Message}");
                 }
             }
-            // Parse faces (lines starting with 'f')
+            // Parse faces (lines starting with 'f ')
             else if (line.StartsWith("f "))
             {
                 try
@@ -132,16 +133,19 @@ public class MeshUpdater : MonoBehaviour
                         triangles.Add(v2);
                         triangles.Add(v3);
 
-                        // Ensure normals are assigned per vertex
-                        if (normals.Count > n1 && normals.Count > n2 && normals.Count > n3)
+                        // Initialize the normals array if it hasn't been initialized
+                        if (assignedNormals.Length == 0)
                         {
-                            mesh.normals[v1] = normals[n1];
-                            mesh.normals[v2] = normals[n2];
-                            mesh.normals[v3] = normals[n3];
+                            assignedNormals = new Vector3[vertices.Count];
                         }
+
+                        // Assign normals to the corresponding vertices
+                        if (n1 < normals.Count) assignedNormals[v1] = normals[n1];
+                        if (n2 < normals.Count) assignedNormals[v2] = normals[n2];
+                        if (n3 < normals.Count) assignedNormals[v3] = normals[n3];
                     }
                 }
-                catch (FormatException e)
+                catch (System.Exception e)
                 {
                     Debug.LogError($"Error parsing face line: {line} | {e.Message}");
                 }
@@ -152,29 +156,25 @@ public class MeshUpdater : MonoBehaviour
         if (vertices.Count == 0 || triangles.Count == 0)
         {
             Debug.LogError("Mesh has no vertices or faces.");
+            Debug.Log("Vertice Count" + vertices.Count);
+            Debug.Log("Triangles Count" + triangles.Count);
             return null;  // If mesh data is incomplete, return null
-        }
-
-        // If no normals are provided, calculate them
-        if (normals.Count == 0)
-        {
-            mesh.normals = new Vector3[vertices.Count];
-            mesh.RecalculateNormals();  // Recalculate normals if they are missing
-        }
-        else if (normals.Count != vertices.Count)
-        {
-            Debug.LogWarning("Normals count does not match vertices count. Recalculating normals...");
-            mesh.normals = new Vector3[vertices.Count];
-            mesh.RecalculateNormals();  // Recalculate normals if the count doesn't match
-        }
-        else
-        {
-            mesh.normals = normals.ToArray();  // If normals match, assign them directly
         }
 
         // Assign vertices and triangles
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
+
+        // If normals have been assigned, use them; otherwise, recalculate
+        if (assignedNormals.Length == vertices.Count)
+        {
+            mesh.normals = assignedNormals;
+        }
+        else
+        {
+            Debug.LogWarning("Normals count does not match vertices count. Recalculating normals...");
+            mesh.RecalculateNormals();
+        }
 
         return mesh;
     }

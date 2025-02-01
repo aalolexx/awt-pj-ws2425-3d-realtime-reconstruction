@@ -38,11 +38,13 @@ class MeshStreamer(BaseModule):
 
 
     def mesh_to_obj_string(self, mesh):
-        #obj_str = "# Created by Open3D\n"
-        #obj_str += "# object name: pipeline_mesh\n"
-        #obj_str += f"# number of vertices: {len(mesh.vertices)}\n"
-        #obj_str += f"# number of triangles: {len(mesh.triangles)}\n"
-        obj_str = ""
+        obj_str = "# Created Mesh Reconstruction Pipeline\n"
+        obj_str += "# object name: pipeline_mesh\n"
+        obj_str += f"# number of vertices: {len(mesh.vertices)}\n"
+        obj_str += f"# number of triangles: {len(mesh.triangles)}\n"
+
+        if (len(mesh.vertices) <= 0):
+            print("ATTENTION: Streamed mesh has no vertices")
 
         for i, vertex in enumerate(mesh.vertices):
             obj_str += f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"  # Write vertices
