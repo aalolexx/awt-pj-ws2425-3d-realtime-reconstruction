@@ -28,7 +28,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="small_unet_auto_encoder.pth",
                             visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=False)
+mesh_generator = MeshGenerator(visualize=True)
 mesh_streamer = MeshStreamer(visualize=False)
 
 # Prepare Webcam

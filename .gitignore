@@ -1,4 +1,4 @@
-assets/
+/assets/
 scripts/dawid_temp
 scripts/alex
 vendor/
@@ -198,3 +198,5 @@ Thumbs.db
 *.msi
 *.msp
 *.msm
+
+*.meta

@@ -38,21 +38,26 @@ class MeshStreamer(BaseModule):
 
 
     def mesh_to_obj_string(self, mesh):
-        obj_str = "# Created by Open3D\n"
-        obj_str += "# object name: pipeline_mesh\n"
-        obj_str += f"# number of vertices: {len(mesh.vertices)}\n"
-        obj_str += f"# number of triangles: {len(mesh.triangles)}\n"
+        #obj_str = "# Created by Open3D\n"
+        #obj_str += "# object name: pipeline_mesh\n"
+        #obj_str += f"# number of vertices: {len(mesh.vertices)}\n"
+        #obj_str += f"# number of triangles: {len(mesh.triangles)}\n"
+        obj_str = ""
 
-        # Add vertices
-        for v in mesh.vertices:
-            obj_str += f"v {v[0]} {v[1]} {v[2]}\n"
+        for i, vertex in enumerate(mesh.vertices):
+            obj_str += f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"  # Write vertices
 
-        # Add vertex normals (if available)
-        for vn in mesh.vertex_normals:
-            obj_str += f"vn {vn[0]} {vn[1]} {vn[2]}\n"
+        for i, normal in enumerate(mesh.vertex_normals):
+            obj_str += f"vn {normal[0]} {normal[1]} {normal[2]}\n"  # Write normals
 
-        # Add faces (triangles)
         for triangle in mesh.triangles:
-            obj_str += f"f {triangle[0] + 1} {triangle[1] + 1} {triangle[2] + 1}\n"  # OBJ format is 1-indexed
+            obj_str += f"f {triangle[0] + 1}//{triangle[0] + 1} {triangle[1] + 1}//{triangle[1] + 1} {triangle[2] + 1}//{triangle[2] + 1}\n"
+            # Correct "f v1//vn1 v2//vn2 v3//vn3" format
+
+        #print(obj_str)
+#
+        #print("-------")
+        #print(len(mesh.vertices))
+        #print(len(mesh.vertex_normals))
 
         return obj_str
