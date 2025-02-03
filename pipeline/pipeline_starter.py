@@ -16,7 +16,8 @@ from components.pc_generator.ForegroundExtractor_RMBG import ForegroundExtractor
 from components.pc_generator.DepthThresholder import DepthThresholder
 from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
 from components.mesh_generator.MeshGenerator import MeshGenerator
-from components.mesh_streamer.MeshStreamer import MeshStreamer
+from components.streaming.MeshStreamer import MeshStreamer
+from components.streaming.PcdStreamer import PcdStreamer
 
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
@@ -28,8 +29,9 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="small_unet_auto_encoder.pth",
                             visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=True)
+mesh_generator = MeshGenerator(visualize=False)
 mesh_streamer = MeshStreamer(visualize=False)
+pcd_streamer = PcdStreamer(visualize=False)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
@@ -72,13 +74,17 @@ def create_console_pipeline(data, active_module_idx):
                   f"[bold green]{data[5]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 5 else ''}"
                   )
-    table.add_row("[bold cyan]Mesh Streaming[/bold cyan]",
+    table.add_row("[bold cyan]PCD Streaming[/bold cyan]",
                   f"[bold green]{data[6]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 6 else ''}"
                   )
-    table.add_row("[bold cyan]Total Time[/bold cyan]",
+    table.add_row("[bold cyan]Mesh Streaming[/bold cyan]",
                   f"[bold green]{data[7]:.4f}[/bold green]",
                   f"{'🤖' if active_module_idx == 7 else ''}"
+                  )
+    table.add_row("[bold cyan]Total Time[/bold cyan]",
+                  f"[bold green]{data[8]:.4f}[/bold green]",
+                  f"{'🤖' if active_module_idx == 8 else ''}"
                   )
     return table
 
@@ -103,7 +109,7 @@ def run_pipeline():
     # Initialize the console
     console = Console()
 
-    time_per_module = [0, 0, 0, 0, 0, 0, 0, 0]
+    time_per_module = [0, 0, 0, 0, 0, 0, 0, 0, 0]
     count = 0
 
     with Live(create_console_pipeline(time_per_module, 0), refresh_per_second=4, console=console) as live: # for console updates
@@ -162,9 +168,6 @@ def run_pipeline():
             elapsed_time = time.perf_counter() - start_time
             time_per_module[4] = elapsed_time * 1000
 
-            #if count % 3 == 0 and reconstructed_pcd is not None:
-            #    o3d.io.write_point_cloud(f"PCD_ESTIMATED_FRAME_{count}.ply", reconstructed_pcd)
-
             # Mesh Generation
             start_time = time.perf_counter()
             reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
@@ -173,19 +176,27 @@ def run_pipeline():
 
             live.update(create_console_pipeline(time_per_module, 5))
 
-            # Mesh Streaming
+            # PCD Streaming
             start_time = time.perf_counter()
-            mesh_streamer.run_step(reconstructed_mesh)
+            pcd_streamer.run_step(reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[6] = elapsed_time * 1000
 
             live.update(create_console_pipeline(time_per_module, 6))
 
-            # calculate total time for a frame 
-            time_per_module[7] = 0
-            total_time = sum(time_per_module)
-            time_per_module[7] = total_time
+            # Mesh Streaming
+            start_time = time.perf_counter()
+            mesh_streamer.run_step(reconstructed_mesh)
+            elapsed_time = time.perf_counter() - start_time
+            time_per_module[7] = elapsed_time * 1000
+
             live.update(create_console_pipeline(time_per_module, 7))
+
+            # calculate total time for a frame 
+            time_per_module[8] = 0
+            total_time = sum(time_per_module)
+            time_per_module[8] = total_time
+            live.update(create_console_pipeline(time_per_module, 8))
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break

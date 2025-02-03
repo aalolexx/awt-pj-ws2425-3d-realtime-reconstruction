@@ -481,9 +481,9 @@
     "m_ShaderOutputName": "ColorB",
     "m_StageCapability": 3,
     "m_Value": {
-        "x": 0.8509804010391235,
-        "y": 0.8956689834594727,
-        "z": 0.9098039269447327
+        "x": 0.8886792063713074,
+        "y": 0.9238331913948059,
+        "z": 1.0
     },
     "m_DefaultValue": {
         "x": 0.0,
@@ -540,7 +540,7 @@
     "m_Hidden": false,
     "m_ShaderOutputName": "Smoothness",
     "m_StageCapability": 2,
-    "m_Value": 0.5,
+    "m_Value": 0.0,
     "m_DefaultValue": 0.5,
     "m_Labels": []
 }

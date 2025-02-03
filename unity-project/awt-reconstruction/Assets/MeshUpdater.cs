@@ -27,7 +27,7 @@ public class MeshUpdater : MonoBehaviour
             meshRenderer.material = new Material(Shader.Find("Standard"));
         }
 
-        client = new TcpClient("127.0.0.1", 65432);
+        client = new TcpClient("127.0.0.1", 8763);
         stream = client.GetStream();
         StartCoroutine(ReceiveMeshData());
     }
