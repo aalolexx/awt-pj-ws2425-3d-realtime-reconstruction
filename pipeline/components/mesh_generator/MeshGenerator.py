@@ -2,6 +2,7 @@ import numpy as np
 import open3d as o3d
 
 from util.base_module import BaseModule
+from skimage.measure import marching_cubes
 
 """
 Constructs a mesh from the reconstructed point cloud
@@ -20,7 +21,15 @@ class MeshGenerator(BaseModule):
     # Run Step
     #
     def run_step(self, pcd_completed):
-        mesh = self.mesh_generation(pcd_completed)
+        #mesh = self.mesh_generation(pcd_completed)
+        input_volume = np.zeros((64,128,64), dtype=np.float32)
+        input_points = np.asarray(pcd_completed.points, dtype=np.uint8)
+
+        #print("constructing input volume")
+        for (x, y, z) in input_points:
+            input_volume[x, y, z] = 1
+
+        mesh = self.voxel_grid_to_mesh(input_volume)
 
         if self._visualize:
             self.visualize(mesh)
@@ -102,3 +111,27 @@ class MeshGenerator(BaseModule):
 
         self.vis.poll_events()
         self.vis.update_renderer()
+
+
+    #
+    # Marching Cubes Approach
+    #
+    def voxel_grid_to_mesh(self, volume, isolevel=0.1):
+
+        verts, faces, norms, vals = marching_cubes(
+            volume, 
+            level=isolevel, 
+            spacing=(1.0, 1.0, 1.0)
+        )
+
+        mesh = o3d.geometry.TriangleMesh()
+
+        mesh.vertices = o3d.utility.Vector3dVector(verts)
+        mesh.triangles = o3d.utility.Vector3iVector(faces)
+
+        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=1)
+        mesh.compute_vertex_normals()
+
+        return mesh
+    
+

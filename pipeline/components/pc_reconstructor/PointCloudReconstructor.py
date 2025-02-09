@@ -17,7 +17,7 @@ Uses our custom made Models to reconstruct a incomplete point cloud (given from 
 class PointCloudReconstructor(BaseModule):
     def __init__(self, model_name, checkpoint_name, visualize=False):
         """Initialize the PointCloudReconstructor."""
-        self._threshold = 0.15
+        self._threshold = 0.18
         self._visualize = visualize
         self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
         classes_module = importlib.import_module("ModelClasses")
@@ -57,8 +57,10 @@ class PointCloudReconstructor(BaseModule):
 
             # post processing
             maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
+            #thresholded_point_cloud = self.construct_point_cloud_from_tensor(model_output_tensor)
             thresholded_point_cloud = self.construct_point_cloud_from_tensor(maxima_tensor)
-            reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
+            reconstructed_pcd = thresholded_point_cloud
+            #reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
 
         if self._visualize:
             self.visualize(reconstructed_pcd)
@@ -166,7 +168,7 @@ class PointCloudReconstructor(BaseModule):
     # Rescale point cloud to it's original position and scale
     # Optionally scale pointcloud into bounding box around the center
     #
-    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, should_scale_to_bounding_box=True):
+    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, should_scale_to_bounding_box=False):
         # reverse scale
         points = np.asarray(point_cloud.points)
         points = points - (32,64,32)
