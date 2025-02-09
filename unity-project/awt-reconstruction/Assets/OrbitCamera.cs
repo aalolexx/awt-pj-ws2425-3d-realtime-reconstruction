@@ -19,7 +19,7 @@ public class OrbitCamera : MonoBehaviour {
 
     public void Start () {
        
-        x = 22f;
+        x = -30;
         y = 33f;
 
         // Make the rigid body not change rotation
