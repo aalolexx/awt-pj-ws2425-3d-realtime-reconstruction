@@ -79,7 +79,8 @@ class PcdStreamer(BaseModule):
         # Send to client if connected
         if self._client_socket:
             try:
-                self._client_socket.send(message)
+                data_length = len(message).to_bytes(4, byteorder='big')
+                self._client_socket.sendall(data_length + message)
             except (ConnectionResetError, BrokenPipeError):
                 # Handle client disconnection
                 print("Client disconnected")

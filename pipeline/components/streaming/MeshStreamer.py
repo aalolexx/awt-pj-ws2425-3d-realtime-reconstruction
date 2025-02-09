@@ -48,8 +48,15 @@ class MeshStreamer(BaseModule):
 
         # If we have a client socket and a mesh, send data
         if self._client_socket:
-            mesh_data = self.mesh_to_obj_string(mesh)
-            self._client_socket.send(mesh_data.encode("UTF8"))
+            try:
+                mesh_data = self.mesh_to_obj_string(mesh)
+                data_length = len(mesh_data).to_bytes(4, byteorder='big')
+                self._client_socket.sendall(data_length + mesh_data.encode("UTF8"))
+            except (ConnectionResetError, BrokenPipeError):
+                # Handle client disconnection
+                print("Client disconnected")
+                self._client_socket.close()
+                self._client_socket = None
 
     def _accept_connection(self, sock):
         """Handle new incoming connection."""

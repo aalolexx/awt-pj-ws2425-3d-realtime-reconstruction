@@ -2,6 +2,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 
@@ -13,6 +14,7 @@ public class PcdUpdaasdter : MonoBehaviour
     
     TcpClient client;
     NetworkStream stream;
+    const int MAX_MESH_SIZE = 10 * 1024 * 1024;  // 10MB limit
     byte[] buffer = new byte[1024 * 1024];
     
     [Serializable]
@@ -41,12 +43,46 @@ public class PcdUpdaasdter : MonoBehaviour
             if (stream.DataAvailable)
             {
                 
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                string dataString = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                byte[] lengthBuffer = new byte[4];  // Read the 4-byte length prefix
+                int lengthBytesRead = stream.Read(lengthBuffer, 0, 4);
+                
+                if (lengthBytesRead < 4)
+                {
+                    Debug.LogError("Failed to read full length prefix.");
+                    yield return null;
+                    continue;
+                }
 
+                int messageLength = BitConverter.ToInt32(lengthBuffer.Reverse().ToArray(), 0); // Convert from Big-endian
+                
+                // Validate message size
+                if (messageLength <= 0 || messageLength > MAX_MESH_SIZE)
+                {
+                    Debug.LogError($"Invalid message length: {messageLength}");
+                    stream.Flush();  // Clear buffer to avoid sync issues
+                    continue;
+                }
+                
+                // Read full message
+                int bytesRead = 0;
+                byte[] dataBuffer = new byte[messageLength];
+
+                while (bytesRead < messageLength)
+                {
+                    int read = stream.Read(dataBuffer, bytesRead, messageLength - bytesRead);
+                    if (read == 0)
+                    {
+                        Debug.LogError("Connection closed while reading data.");
+                        client.Close();
+                        yield break;
+                    }
+                    bytesRead += read;
+                }
+
+                string dataString = Encoding.UTF8.GetString(dataBuffer);
+                
                 try
                 {
-
                     PointCloudData pointCloud = JsonUtility.FromJson<PointCloudData>(dataString);
 
                     //Debug.Log(pointCloud);
