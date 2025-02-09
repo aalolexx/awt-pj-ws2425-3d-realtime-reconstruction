@@ -6,9 +6,7 @@ import open3d as o3d
 from PIL import Image
 import matplotlib.pyplot as plt
 
-
 from util.base_module import BaseModule
-
 
 class PointCloudGenerator(BaseModule):
     def __init__(self, visualize=False):
@@ -60,7 +58,7 @@ class PointCloudGenerator(BaseModule):
                     [0, 0, 1, 0],
                     [0, 0, 0, 1]])
 
-        downpcd = pcd.voxel_down_sample(voxel_size=0.5)
+        downpcd = pcd.voxel_down_sample(voxel_size=2)
 
         # POST PROCESSING
         downpcd, _ = downpcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=0.25)  # remove "noisy" outliers

@@ -25,8 +25,8 @@ depth_estimator = DepthEstimator(visualize=False)
 depth_thresholder = DepthThresholder(visualize=False)
 pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
-                            model_name="SmallUnetAutoEncoder",
-                            checkpoint_name="small_unet_auto_encoder.pth",
+                            model_name="VoxelAutoEncoder",
+                            checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
 mesh_generator = MeshGenerator(visualize=False)
