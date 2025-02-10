@@ -29,7 +29,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=False)
+mesh_generator = MeshGenerator(visualize=True)
 mesh_streamer = MeshStreamer(visualize=True)
 pcd_streamer = PcdStreamer(visualize=True)
 
@@ -179,7 +179,8 @@ def run_pipeline():
 
             # PCD Streaming
             start_time = time.perf_counter()
-            pcd_streamer.run_step(reconstructed_pcd)
+            rescaled_reconstructed_pcd = pointcloud_reconstructor.reverse_scale_of_point_cloud(reconstructed_pcd, scaling_factor)
+            pcd_streamer.run_step(rescaled_reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[6] = elapsed_time * 1000
 
