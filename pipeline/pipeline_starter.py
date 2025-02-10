@@ -14,6 +14,7 @@ from components.pc_generator.DepthEstimator import DepthEstimator
 from components.pc_generator.PointCloudGenerator import PointCloudGenerator
 from components.pc_generator.ForegroundExtractor_RMBG import ForegroundExtractor
 from components.pc_generator.DepthThresholder import DepthThresholder
+from components.pc_generator.DepthSegmenter import DepthSegmenter
 from components.pc_reconstructor.PointCloudReconstructor import PointCloudReconstructor
 from components.mesh_generator.MeshGenerator import MeshGenerator
 from components.streaming.MeshStreamer import MeshStreamer
@@ -22,16 +23,17 @@ from components.streaming.PcdStreamer import PcdStreamer
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=False)
-pointcloud_generator = PointCloudGenerator(visualize=False)
+depth_thresholder = DepthThresholder(visualize=True)
+#depth_segmenter = DepthSegmenter(visualize=True)
+pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
                             checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
 mesh_generator = MeshGenerator(visualize=True)
-mesh_streamer = MeshStreamer(visualize=True)
-pcd_streamer = PcdStreamer(visualize=True)
+mesh_streamer = MeshStreamer(visualize=False)
+pcd_streamer = PcdStreamer(visualize=False)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)

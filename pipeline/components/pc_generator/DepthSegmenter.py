@@ -25,7 +25,7 @@ class DepthSegmenter(BaseModule):
         _, edges = cv2.threshold(gradient, 10, 255, cv2.THRESH_BINARY)
 
         # Get what is very likely the bg
-        _, sure_fg = cv2.threshold(depth_copy, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, sure_fg = cv2.threshold(depth_copy, 150, 1, cv2.THRESH_BINARY)
 
         # Find floor and ceilings based on the assumption that they have a slow big gradient
         gradient_y = cv2.Sobel(depth_copy, cv2.CV_64F, 0, 1, ksize=5)
