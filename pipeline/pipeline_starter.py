@@ -20,10 +20,10 @@ from components.streaming.MeshStreamer import MeshStreamer
 from components.streaming.PcdStreamer import PcdStreamer
 
 # Initialize the Pipeline Modules
-depth_estimator = DepthEstimator(visualize=False)
+depth_estimator = DepthEstimator(visualize=True)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=False)
-pointcloud_generator = PointCloudGenerator(visualize=False)
+depth_thresholder = DepthThresholder(visualize=True)
+pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
                             checkpoint_name="voxel_weights_10.pth",
@@ -40,7 +40,8 @@ video_path2 = "../recordings/recording2.mp4"
 video_path3 = "../recordings/recording3.mp4"
 video_path4 = "../recordings/recording4.mp4"
 video_path5 = "../recordings/recording5.mp4"
-cap = cv2.VideoCapture(video_path5)
+video_path8 = "../recordings/recording8_cut.mp4"
+cap = cv2.VideoCapture(video_path8)
 
 ###
 # CONSOLE PRINTING FUNCTIONS

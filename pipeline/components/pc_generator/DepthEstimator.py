@@ -19,7 +19,7 @@ from depth_anything_v2.dpt import DepthAnythingV2
 
 
 class DepthEstimator(BaseModule):
-    def __init__(self, input_size=320, visualize=False):
+    def __init__(self, input_size=480, visualize=False):
         """Initialize the DepthEstimator."""
         self._input_size = input_size
         self._visualize = visualize
