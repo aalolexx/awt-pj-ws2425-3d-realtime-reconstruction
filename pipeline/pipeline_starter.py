@@ -129,7 +129,10 @@ def run_pipeline():
             if not ret:
                 print("Failed to grab frame")
                 break
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            cv2.imshow('original', frame)
+
             elapsed_time = time.perf_counter() - start_time
             time_per_module[0] = elapsed_time * 1000
 
