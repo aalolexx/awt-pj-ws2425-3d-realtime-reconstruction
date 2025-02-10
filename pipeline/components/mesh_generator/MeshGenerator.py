@@ -130,12 +130,18 @@ class MeshGenerator(BaseModule):
         mesh.vertices = o3d.utility.Vector3dVector((verts - translation) * scaling_factor)
         mesh.triangles = o3d.utility.Vector3iVector(faces)
 
-        #mesh = mesh.filter_smooth_laplacian(number_of_iterations=1)
-
         mesh_simplified = mesh.simplify_vertex_clustering(
-            voxel_size=1,
+            voxel_size=4,
             contraction=o3d.geometry.SimplificationContraction.Average
         )
+
+        aabb = mesh_simplified.get_axis_aligned_bounding_box()
+        min_bound = aabb.get_min_bound()
+        max_bound = aabb.get_max_bound()
+        extents = max_bound - min_bound
+        max_scale = 2.0 / max(extents)
+        bounding_box_scale = np.array([max_scale, max_scale, max_scale])
+        mesh_simplified.vertices = o3d.utility.Vector3dVector(mesh_simplified.vertices * bounding_box_scale)
 
         #mesh_simplified = mesh_simplified.filter_smooth_laplacian(number_of_iterations=1)
         mesh_simplified.compute_vertex_normals()

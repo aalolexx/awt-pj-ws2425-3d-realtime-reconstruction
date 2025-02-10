@@ -168,7 +168,7 @@ class PointCloudReconstructor(BaseModule):
     # Rescale point cloud to it's original position and scale
     # Optionally scale pointcloud into bounding box around the center
     #
-    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, should_scale_to_bounding_box=False):
+    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, should_scale_to_bounding_box=True):
         # reverse scale
         points = np.asarray(point_cloud.points)
         points = points - (32,64,32)
