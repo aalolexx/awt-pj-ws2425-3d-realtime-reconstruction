@@ -160,9 +160,6 @@ Thumbs.db
 Build/
 Builds/
 
-# User-specific preferences
-UserSettings/
-
 # Generated Unity asset files
 sysinfo.txt
 *.bak
@@ -198,5 +195,3 @@ Thumbs.db
 *.msi
 *.msp
 *.msm
-
-*.meta
