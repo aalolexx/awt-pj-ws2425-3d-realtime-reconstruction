@@ -20,18 +20,18 @@ from components.streaming.MeshStreamer import MeshStreamer
 from components.streaming.PcdStreamer import PcdStreamer
 
 # Initialize the Pipeline Modules
-depth_estimator = DepthEstimator(visualize=True)
+depth_estimator = DepthEstimator(visualize=False)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=True)
+depth_thresholder = DepthThresholder(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
                             checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
 mesh_generator = MeshGenerator(visualize=False)
-mesh_streamer = MeshStreamer(visualize=False)
-pcd_streamer = PcdStreamer(visualize=False)
+mesh_streamer = MeshStreamer(visualize=True)
+pcd_streamer = PcdStreamer(visualize=True)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
@@ -41,7 +41,7 @@ video_path3 = "../recordings/recording3.mp4"
 video_path4 = "../recordings/recording4.mp4"
 video_path5 = "../recordings/recording5.mp4"
 video_path8 = "../recordings/recording8_cut.mp4"
-cap = cv2.VideoCapture(video_path8)
+cap = cv2.VideoCapture(video_path5)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
@@ -165,13 +165,13 @@ def run_pipeline():
 
             # PCD Reconstruction
             start_time = time.perf_counter()
-            reconstructed_pcd = pointcloud_reconstructor.run_step(incomplete_pcd)
+            reconstructed_pcd, scaling_factor = pointcloud_reconstructor.run_step(incomplete_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[4] = elapsed_time * 1000
 
             # Mesh Generation
             start_time = time.perf_counter()
-            reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd)
+            reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd, scaling_factor)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[5] = elapsed_time * 1000
 

@@ -21,16 +21,15 @@ class MeshGenerator(BaseModule):
     #
     # Run Step
     #
-    def run_step(self, pcd_completed):
+    def run_step(self, pcd_completed, scaling_factor):
         #mesh = self.mesh_generation(pcd_completed)
         input_volume = np.zeros((64,128,64), dtype=np.float32)
         input_points = np.asarray(pcd_completed.points, dtype=np.uint8)
 
-        #print("constructing input volume")
         for (x, y, z) in input_points:
             input_volume[x, y, z] = 1
 
-        mesh = self.voxel_grid_to_mesh(input_volume)
+        mesh = self.voxel_grid_to_mesh(input_volume, scaling_factor)
 
         if self._visualize:
             self.visualize(mesh)
@@ -117,7 +116,7 @@ class MeshGenerator(BaseModule):
     #
     # Marching Cubes Approach
     #
-    def voxel_grid_to_mesh(self, volume, isolevel=0.1):
+    def voxel_grid_to_mesh(self, volume, scaling_factor, isolevel=0.1):
 
         verts, faces, norms, vals = marching_cubes(
             volume, 
@@ -127,12 +126,18 @@ class MeshGenerator(BaseModule):
 
         mesh = o3d.geometry.TriangleMesh()
 
-        mesh.vertices = o3d.utility.Vector3dVector(verts)
+        translation = np.array([32, 64, 32])
+        mesh.vertices = o3d.utility.Vector3dVector((verts - translation) * scaling_factor)
         mesh.triangles = o3d.utility.Vector3iVector(faces)
 
         #mesh = mesh.filter_smooth_laplacian(number_of_iterations=1)
-        mesh.compute_vertex_normals()
 
-        return mesh
-    
+        mesh_simplified = mesh.simplify_vertex_clustering(
+            voxel_size=1,
+            contraction=o3d.geometry.SimplificationContraction.Average
+        )
 
+        #mesh_simplified = mesh_simplified.filter_smooth_laplacian(number_of_iterations=1)
+        mesh_simplified.compute_vertex_normals()
+
+        return mesh_simplified

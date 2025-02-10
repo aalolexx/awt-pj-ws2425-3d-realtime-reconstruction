@@ -17,7 +17,7 @@ Uses our custom made Models to reconstruct a incomplete point cloud (given from 
 class PointCloudReconstructor(BaseModule):
     def __init__(self, model_name, checkpoint_name, visualize=False):
         """Initialize the PointCloudReconstructor."""
-        self._threshold = 0.18
+        self._threshold = 0.20
         self._visualize = visualize
         self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
         classes_module = importlib.import_module("ModelClasses")
@@ -65,7 +65,7 @@ class PointCloudReconstructor(BaseModule):
         if self._visualize:
             self.visualize(reconstructed_pcd)
 
-        return reconstructed_pcd
+        return reconstructed_pcd, scaling_factor
 
 
     #
@@ -207,3 +207,4 @@ class PointCloudReconstructor(BaseModule):
         self.vis.update_geometry(self.pcd_placeholder)
         self.vis.poll_events()
         self.vis.update_renderer()
+
