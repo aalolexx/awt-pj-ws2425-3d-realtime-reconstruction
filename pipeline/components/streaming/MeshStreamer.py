@@ -3,6 +3,7 @@ import numpy as np
 import socket
 import json
 import selectors
+import threading
 
 from util.base_module import BaseModule
 
@@ -48,15 +49,9 @@ class MeshStreamer(BaseModule):
 
         # If we have a client socket and a mesh, send data
         if self._client_socket:
-            try:
-                mesh_data = self.mesh_to_obj_string(mesh)
-                data_length = len(mesh_data).to_bytes(4, byteorder='big')
-                self._client_socket.sendall(data_length + mesh_data.encode("UTF8"))
-            except (ConnectionResetError, BrokenPipeError):
-                # Handle client disconnection
-                print("Client disconnected")
-                self._client_socket.close()
-                self._client_socket = None
+            thread = threading.Thread(target=self._send_data, args=(mesh,))
+            thread.start()
+
 
     def _accept_connection(self, sock):
         """Handle new incoming connection."""
@@ -74,6 +69,20 @@ class MeshStreamer(BaseModule):
         conn.setblocking(False)
         print(f"Connection from {addr}")
         self._client_socket = conn
+
+    def _send_data(self, mesh):
+        """Send data in a separate thread."""
+        data = self.mesh_to_obj_string(mesh)
+
+        if self._client_socket:
+            try:
+                data_length = len(data).to_bytes(4, byteorder='big')
+                self._client_socket.sendall(data_length + data.encode("UTF8"))
+            except (ConnectionResetError, BrokenPipeError):
+                # Handle client disconnection
+                print("Client disconnected")
+                self._client_socket.close()
+                self._client_socket = None
 
 
     def mesh_to_obj_string(self, mesh):

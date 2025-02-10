@@ -4,6 +4,7 @@ import socket
 import json
 import selectors
 import types
+import threading
 
 from util.base_module import BaseModule
 
@@ -77,10 +78,18 @@ class PcdStreamer(BaseModule):
         message = json.dumps({"points": points}).encode('UTF8')
 
         # Send to client if connected
+        # Send to client if connected in a separate thread
+        if self._client_socket:
+            thread = threading.Thread(target=self._send_data, args=(message,))
+            thread.start()
+
+
+    def _send_data(self, data):
+        """Send data in a separate thread."""
         if self._client_socket:
             try:
-                data_length = len(message).to_bytes(4, byteorder='big')
-                self._client_socket.sendall(data_length + message)
+                data_length = len(data).to_bytes(4, byteorder='big')
+                self._client_socket.sendall(data_length + data)
             except (ConnectionResetError, BrokenPipeError):
                 # Handle client disconnection
                 print("Client disconnected")

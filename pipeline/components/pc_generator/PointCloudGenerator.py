@@ -53,7 +53,7 @@ class PointCloudGenerator(BaseModule):
         pcd.points = o3d.utility.Vector3dVector(points)
 
         # Flip the point cloud (optional, depending on the coordinate system)
-        pcd.transform([[-1, 0, 0, 0],
+        pcd.transform([[1, 0, 0, 0],
                     [0, -1, 0, 0],
                     [0, 0, 1, 0],
                     [0, 0, 0, 1]])
