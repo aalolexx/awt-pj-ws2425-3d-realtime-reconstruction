@@ -9,8 +9,14 @@ from skimage.measure import marching_cubes
 Constructs a mesh from the reconstructed point cloud
 """
 class MeshGenerator(BaseModule):
-    def __init__(self, visualize=False):
+    def __init__(self, visualize=False, approach='marching'):
         self._visualize = visualize
+        integrated_approaches = ['marching', 'ball', 'poisson', 'alpha']
+        if approach in integrated_approaches:
+            self._approach = approach
+        else:
+            print("No valid approach for mesh generation, using marching (marching cubes) instead")
+            self._approach = 'marching'
 
         if self._visualize:
             self.vis = o3d.visualization.Visualizer()
@@ -22,14 +28,20 @@ class MeshGenerator(BaseModule):
     # Run Step
     #
     def run_step(self, pcd_completed, scaling_factor):
-        #mesh = self.mesh_generation(pcd_completed)
         input_volume = np.zeros((64,128,64), dtype=np.float32)
         input_points = np.asarray(pcd_completed.points, dtype=np.uint8)
 
         for (x, y, z) in input_points:
             input_volume[x, y, z] = 1
 
-        mesh = self.voxel_grid_to_mesh(input_volume, scaling_factor)
+        if self._approach == 'marching':
+            mesh = self.voxel_grid_to_mesh(input_volume, scaling_factor)
+        elif self._approach == 'ball':
+            mesh = self.ball_pivoting(pcd_completed)
+        elif self._approach == 'poisson':
+            mesh = self.poisson(pcd_completed)
+        elif self._approach == 'alpha':
+            mesh = self.alpha_shapes(pcd_completed)
 
         if self._visualize:
             self.visualize(mesh)
@@ -40,7 +52,7 @@ class MeshGenerator(BaseModule):
     #
     # Ball pivoting
     #
-    def mesh_generation(self, pcd):
+    def normal_estimation(self, pcd):
         #self.estimate_normals(pcd)
         pcd = pcd.voxel_down_sample(voxel_size=0.02)
 
@@ -49,41 +61,12 @@ class MeshGenerator(BaseModule):
         pcd.orient_normals_to_align_with_direction(np.array([0., 0., 1.]))
         pcd.orient_normals_consistent_tangent_plane(10)
 
-        # BALL PIVOTING
-        """
-        distances = pcd.compute_nearest_neighbor_distance()
-        avg_distance = np.mean(distances)
-        radius = 1.5 * avg_distance
-        radii = [1*radius, 1.5*radius, 2*radius, 2.5*radius]
-        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
-            pcd,
-            o3d.utility.DoubleVector(radii)
-        )
-        
-        # FURTHER REMESHING
-        mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=8000)
-        mesh = mesh.filter_smooth_simple(number_of_iterations=2)
-        """
+        return pcd
 
-        # POISSON
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6)
-
-        # MESH CLEANUP
-        mesh.remove_duplicated_vertices()
-        mesh.remove_unreferenced_vertices()
-        mesh.remove_degenerate_triangles()
-        mesh.compute_vertex_normals()
-        mesh.compute_triangle_normals()
-        #mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=8000)
-
-        return mesh
-
-
-    """
     #
     # colorizes the mesh for visualization purposes (can be removed to save some time)
     #
-    def colorize_normals(mesh):
+    def colorize_normals(self, mesh):
         mesh.compute_vertex_normals()
         # Get vertex normals
         vertex_normals = np.asarray(mesh.vertex_normals)
@@ -95,7 +78,6 @@ class MeshGenerator(BaseModule):
             vertex_colors[i] = color  # Assign color based on normal
         # Set the colors to the mesh's vertices
         mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
-    """
 
 
     #
@@ -117,6 +99,7 @@ class MeshGenerator(BaseModule):
     # Marching Cubes Approach
     #
     def voxel_grid_to_mesh(self, volume, scaling_factor, isolevel=0.1):
+
 
         verts, faces, norms, vals = marching_cubes(
             volume, 
@@ -147,3 +130,59 @@ class MeshGenerator(BaseModule):
         mesh_simplified.compute_vertex_normals()
 
         return mesh_simplified
+
+    def ball_pivoting(self, pcd):
+        pcd = self.normal_estimation(pcd)
+        distances = pcd.compute_nearest_neighbor_distance()
+        avg_distance = np.mean(distances)
+        radius = 1.5 * avg_distance
+        radii = [1 * radius, 1.5 * radius, 2 * radius, 2.5 * radius]
+        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+            pcd,
+            o3d.utility.DoubleVector(radii)
+        )
+        mesh = self.mesh_cleanup(mesh)
+        return mesh
+
+    def poisson(self, pcd):
+        pcd = self.normal_estimation(pcd)
+        # POISSON
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6)
+        self.mesh_cleanup(mesh)
+
+        return mesh
+
+    def alpha_shapes(self, pcd):
+        alpha = 0.045
+        print(f"alpha={alpha:.3f}")
+        #        PointCloudReconstructor.reverse_scale_of_point_cloud(pcd, 1)
+        points = np.asarray(pcd.points)
+        points = points - (32,64,32)
+        points = points * 1
+        rescaled_point_cloud = o3d.geometry.PointCloud()
+        rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        points = np.asarray(rescaled_point_cloud.points)
+        min_bound = rescaled_point_cloud.get_min_bound()
+        max_bound = rescaled_point_cloud.get_max_bound()
+        extents = max_bound - min_bound
+        max_scale = 2.0 / max(extents)
+        bounding_box_scale = np.array([max_scale, max_scale, max_scale])
+        points = points * bounding_box_scale
+        rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        rescaled_point_cloud = rescaled_point_cloud.voxel_down_sample(voxel_size=0.02)
+        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(rescaled_point_cloud, alpha)
+        mesh = self.mesh_cleanup(mesh)
+
+        return mesh
+
+    def mesh_cleanup(self, mesh):
+        # MESH CLEANUP
+        mesh.remove_duplicated_vertices()
+        mesh.remove_unreferenced_vertices()
+        mesh.remove_degenerate_triangles()
+        mesh.compute_vertex_normals()
+        mesh.compute_triangle_normals()
+        # mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=8000)
+        return mesh

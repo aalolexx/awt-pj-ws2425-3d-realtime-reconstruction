@@ -31,7 +31,7 @@ pointcloud_reconstructor = PointCloudReconstructor(
                             checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=True)
+mesh_generator = MeshGenerator(visualize=True, approach='marching')
 mesh_streamer = MeshStreamer(visualize=False)
 pcd_streamer = PcdStreamer(visualize=False)
 
