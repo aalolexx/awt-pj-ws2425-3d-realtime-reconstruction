@@ -33,13 +33,6 @@ class PointCloudReconstructor(BaseModule):
             self.vis.create_window(width=800, height=600)
             self.is_point_cloud_created = False
 
-            # add bounding box to visualization
-            min_bound = np.array([-1, -1, -1])
-            max_bound = np.array([1, 1, 1])
-            aabb = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
-            aabb.color = (1, 0, 0)
-            self.vis.add_geometry(aabb)
-
 
     #
     # Run Step

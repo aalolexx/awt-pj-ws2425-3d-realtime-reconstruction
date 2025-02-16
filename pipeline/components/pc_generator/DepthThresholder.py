@@ -35,6 +35,6 @@ class DepthThresholder(BaseModule):
                          thickness=cv2.FILLED)
 
         if self._visualize:
-            cv2.imshow('foreground mask', final_mask)
+            cv2.imshow('Foreground Mask', final_mask)
 
         return final_mask

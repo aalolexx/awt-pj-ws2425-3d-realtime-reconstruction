@@ -43,6 +43,6 @@ class DepthEstimator(BaseModule):
         depth = (depth - depth.min()) / (depth.max() - depth.min())
 
         if self._visualize:
-            cv2.imshow('depth', depth)
+            cv2.imshow('depth map (DepthAnyting)', depth)
 
         return depth
