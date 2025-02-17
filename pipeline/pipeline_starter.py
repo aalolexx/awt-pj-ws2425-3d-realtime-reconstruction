@@ -23,16 +23,16 @@ from components.streaming.PcdStreamer import PcdStreamer
 # Initialize the Pipeline Modules
 depth_estimator = DepthEstimator(visualize=False)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=True)
+depth_thresholder = DepthThresholder(visualize=False)
 #depth_segmenter = DepthSegmenter(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=True)
+pointcloud_generator = PointCloudGenerator(visualize=False)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
                             checkpoint_name="voxel_weights_10.pth",
                             visualize=False
                            )
-mesh_generator = MeshGenerator(visualize=True, approach='marching')
-mesh_streamer = MeshStreamer(visualize=False)
+mesh_generator = MeshGenerator(visualize=False, approach='flying edges')
+mesh_streamer = MeshStreamer(visualize=True)
 pcd_streamer = PcdStreamer(visualize=False)
 
 # Prepare Webcam
@@ -131,7 +131,7 @@ def run_pipeline():
                 break
             #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            cv2.imshow('original', frame)
+            #cv2.imshow('original', frame)
 
             elapsed_time = time.perf_counter() - start_time
             time_per_module[0] = elapsed_time * 1000
@@ -176,7 +176,9 @@ def run_pipeline():
 
             # Mesh Generation
             start_time = time.perf_counter()
-            reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd, scaling_factor)
+            #reconstructed_mesh = mesh_generator.run_step(reconstructed_pcd, scaling_factor)
+            points, faces = mesh_generator.run_step(reconstructed_pcd, scaling_factor)
+
             elapsed_time = time.perf_counter() - start_time
             time_per_module[5] = elapsed_time * 1000
 
@@ -184,8 +186,8 @@ def run_pipeline():
 
             # PCD Streaming
             start_time = time.perf_counter()
-            rescaled_reconstructed_pcd = pointcloud_reconstructor.reverse_scale_of_point_cloud(reconstructed_pcd, scaling_factor)
-            pcd_streamer.run_step(rescaled_reconstructed_pcd)
+            #rescaled_reconstructed_pcd = pointcloud_reconstructor.reverse_scale_of_point_cloud(reconstructed_pcd, scaling_factor)
+            #pcd_streamer.run_step(rescaled_reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[6] = elapsed_time * 1000
 
@@ -193,7 +195,7 @@ def run_pipeline():
 
             # Mesh Streaming
             start_time = time.perf_counter()
-            mesh_streamer.run_step(reconstructed_mesh)
+            mesh_streamer.run_step(points, faces)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[7] = elapsed_time * 1000
 

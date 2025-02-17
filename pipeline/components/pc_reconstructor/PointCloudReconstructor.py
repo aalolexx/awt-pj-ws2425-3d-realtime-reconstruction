@@ -5,8 +5,11 @@ import importlib
 import open3d as o3d
 import numpy as np
 import torch.nn.functional as F
+import copy
+import time
 
 from util.base_module import BaseModule
+
 
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
 sys.path.append(model_dir)  # contains ModelClasses.py
@@ -17,7 +20,7 @@ Uses our custom made Models to reconstruct a incomplete point cloud (given from 
 class PointCloudReconstructor(BaseModule):
     def __init__(self, model_name, checkpoint_name, visualize=False):
         """Initialize the PointCloudReconstructor."""
-        self._threshold = 0.20
+        self._threshold = 0.30
         self._visualize = visualize
         self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
         classes_module = importlib.import_module("ModelClasses")
@@ -47,25 +50,97 @@ class PointCloudReconstructor(BaseModule):
     def run_step(self, pcd_incomplete):
         """Parse the pcd into a voxel grid and reconstruct it."""
         # Parse the PCD into a voxel grid
+        #return pcd_incomplete, np.array([1,1,1])
         normalized_pcd, scaling_factor = self.normalize_anti_isotropic(pcd_incomplete)
         input_tensor = self.pointcloud_to_tensor(normalized_pcd)
 
         self._rc_model.eval()
         with torch.no_grad():
             input_tensor = input_tensor.unsqueeze(0).unsqueeze(0).to(self._device)
+
             model_output_tensor = self._rc_model(input_tensor)
 
             # post processing
-            maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
-            #thresholded_point_cloud = self.construct_point_cloud_from_tensor(model_output_tensor)
-            thresholded_point_cloud = self.construct_point_cloud_from_tensor(maxima_tensor)
-            reconstructed_pcd = thresholded_point_cloud
-            #reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
+            #maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
 
-        if self._visualize:
-            self.visualize(reconstructed_pcd)
+            #maxima_tensor = self.nms_1d_axes_3d_torch(model_output_tensor)
+            ## MAXIMUM
 
-        return reconstructed_pcd, scaling_factor
+            t_in = model_output_tensor#.unsqueeze(0).unsqueeze(0)  # shape (1,1,Z,Y,X)
+
+            # 1) X-direction pooling with kernel=(1,1,3)
+            #    pad=1 ensures we include the "left" and "right" neighbors at edges.
+            max_x = F.max_pool3d(t_in, kernel_size=(1,1,9), stride=1, padding=(0,0,4))
+            # Compare
+            mask_x = (t_in == max_x)
+
+            # 2) Y-direction pooling with kernel=(1,3,1)
+            max_y = F.max_pool3d(t_in, kernel_size=(1,9,1), stride=1, padding=(0,4,0))
+            mask_y = (t_in == max_y)
+
+            # 3) Z-direction pooling with kernel=(3,1,1)
+            max_z = F.max_pool3d(t_in, kernel_size=(9,1,1), stride=1, padding=(4,0,0))
+            mask_z = (t_in == max_z)
+
+            # Combine
+            final_mask = mask_x | mask_y | mask_z
+            out = t_in * final_mask.float()
+
+            #left2  = torch.roll(tensor_3d,  shifts=2,  dims=2)
+            #left  = torch.roll(model_output_tensor,  shifts=1,  dims=2)
+            #right = torch.roll(model_output_tensor,  shifts=-1, dims=2)
+            ##right2 = torch.roll(tensor_3d,  shifts=-2, dims=2)
+            #mask_x = (model_output_tensor >= left) & (model_output_tensor >= right)# & (tensor_3d >= left2) & (tensor_3d >= right2)
+#
+            ##up2    = torch.roll(tensor_3d,  shifts=2,  dims=1)
+            #up    = torch.roll(model_output_tensor,  shifts=1,  dims=1)
+            #down  = torch.roll(model_output_tensor,  shifts=-1, dims=1)
+            ##down2  = torch.roll(tensor_3d,  shifts=-2, dims=1)
+            #mask_y = (model_output_tensor >= up) & (model_output_tensor >= down)# & (tensor_3d >= up2) & (tensor_3d >= down2)
+#
+            ##front2 = torch.roll(tensor_3d,  shifts=2,  dims=0)
+            #front = torch.roll(model_output_tensor,  shifts=1,  dims=0)
+            #back  = torch.roll(model_output_tensor,  shifts=-1, dims=0)
+            ##back2  = torch.roll(tensor_3d,  shifts=-2, dims=0)
+            #mask_z = (model_output_tensor >= front) & (model_output_tensor >= back)# & (tensor_3d >= front2) & (tensor_3d >= back2)
+            #final_mask = mask_x | mask_y | mask_z
+            #out_3d = model_output_tensor * final_mask
+
+            ## MAXIMUM
+
+
+            #thresholded_point_cloud = self.construct_point_cloud_from_tensor_fast(maxima_tensor)
+            ## RECONSTRUCT
+            # Squeeze on the GPU
+            squeezed = out.squeeze()  # still on GPU
+
+            # Find coords on GPU
+            #coords_gpu = (squeezed > self._threshold).nonzero(as_tuple=False)
+            squeezed += 0.75
+
+
+            # Convert to float if needed (still GPU)
+            #coords_gpu = coords_gpu.float()
+
+            # Transfer only valid coords to CPU
+            coords_cpu = squeezed.detach().cpu().numpy().astype("uint8")
+
+            # Create Open3D point cloud
+            #pcd = o3d.geometry.PointCloud()
+            #pcd.points = o3d.utility.Vector3dVector(coords_cpu)
+            #elapsed_time2 = time.perf_counter() - start_time2
+            #print("thresh:", elapsed_time2 * 1000)
+            ### RECONSTRUCT
+            #
+            #reconstructed_pcd = pcd
+            #
+            ##reconstructed_pcd = model_output_tensor
+            ##reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
+
+        #if self._visualize:
+        #    self.visualize(reconstructed_pcd)
+
+        return coords_cpu, scaling_factor
 
 
     #
@@ -150,6 +225,74 @@ class PointCloudReconstructor(BaseModule):
 
         # returned point cloud consisting of maximas
         return suppressed
+
+
+    def construct_point_cloud_from_tensor_fast(self, tensor):
+        torch.cuda.synchronize()
+
+        # Squeeze on the GPU
+        start_time = time.perf_counter()
+        squeezed = tensor.squeeze()  # still on GPU
+        torch.cuda.synchronize()
+
+        elapsed_time = time.perf_counter() - start_time
+        print("squezze: ", elapsed_time * 1000)
+
+        # Find coords on GPU
+        start_time = time.perf_counter()
+        coords_gpu = (squeezed > self._threshold).nonzero(as_tuple=False)
+        torch.cuda.synchronize()
+
+        elapsed_time = time.perf_counter() - start_time
+        print("coords: ", elapsed_time * 1000)
+
+        # Convert to float if needed (still GPU)
+        start_time = time.perf_counter()
+        coords_gpu = coords_gpu.float()
+        torch.cuda.synchronize()
+        elapsed_time = time.perf_counter() - start_time
+        print("float: ", elapsed_time * 1000)
+
+        # Transfer only valid coords to CPU
+        start_time = time.perf_counter()
+        coords_cpu = coords_gpu.cpu().numpy()
+        torch.cuda.synchronize()
+
+        elapsed_time = time.perf_counter() - start_time
+        print("numpy: ", elapsed_time * 1000)
+
+        # Create Open3D point cloud
+        start_time = time.perf_counter()
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(coords_cpu)
+        torch.cuda.synchronize()
+        elapsed_time = time.perf_counter() - start_time
+        print("pcdcon: ", elapsed_time * 1000)
+        return pcd
+
+
+    def nms_1d_axes_3d_torch(self, tensor_3d):
+        #left2  = torch.roll(tensor_3d,  shifts=2,  dims=2)
+        left  = torch.roll(tensor_3d,  shifts=1,  dims=2)
+        right = torch.roll(tensor_3d,  shifts=-1, dims=2)
+        #right2 = torch.roll(tensor_3d,  shifts=-2, dims=2)
+        mask_x = (tensor_3d >= left) & (tensor_3d >= right)# & (tensor_3d >= left2) & (tensor_3d >= right2)
+
+        #up2    = torch.roll(tensor_3d,  shifts=2,  dims=1)
+        up    = torch.roll(tensor_3d,  shifts=1,  dims=1)
+        down  = torch.roll(tensor_3d,  shifts=-1, dims=1)
+        #down2  = torch.roll(tensor_3d,  shifts=-2, dims=1)
+        mask_y = (tensor_3d >= up) & (tensor_3d >= down)# & (tensor_3d >= up2) & (tensor_3d >= down2)
+
+        #front2 = torch.roll(tensor_3d,  shifts=2,  dims=0)
+        front = torch.roll(tensor_3d,  shifts=1,  dims=0)
+        back  = torch.roll(tensor_3d,  shifts=-1, dims=0)
+        #back2  = torch.roll(tensor_3d,  shifts=-2, dims=0)
+        mask_z = (tensor_3d >= front) & (tensor_3d >= back)# & (tensor_3d >= front2) & (tensor_3d >= back2)
+        final_mask = mask_x | mask_y | mask_z
+        out_3d = tensor_3d * final_mask
+
+        return out_3d
 
 
     #

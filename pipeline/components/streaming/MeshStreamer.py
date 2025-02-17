@@ -39,7 +39,7 @@ class MeshStreamer(BaseModule):
     #
     # Run Step
     #
-    def run_step(self, mesh):
+    def run_step(self, points, faces):
         # Check for any socket events
         events = self._selector.select(timeout=0)
 
@@ -49,7 +49,7 @@ class MeshStreamer(BaseModule):
 
         # If we have a client socket and a mesh, send data
         if self._client_socket:
-            thread = threading.Thread(target=self._send_data, args=(mesh,))
+            thread = threading.Thread(target=self._send_data, args=(points, faces,))
             thread.start()
 
 
@@ -70,9 +70,9 @@ class MeshStreamer(BaseModule):
         print(f"Connection from {addr}")
         self._client_socket = conn
 
-    def _send_data(self, mesh):
+    def _send_data(self, points, faces):
         """Send data in a separate thread."""
-        data = self.mesh_to_obj_string(mesh)
+        data = self.mesh_to_obj_string(points, faces)
 
         if self._client_socket:
             try:
@@ -85,22 +85,22 @@ class MeshStreamer(BaseModule):
                 self._client_socket = None
 
 
-    def mesh_to_obj_string(self, mesh):
+    def mesh_to_obj_string(self, points, faces):
         obj_str = "# Created Mesh Reconstruction Pipeline\n"
         obj_str += "# object name: pipeline_mesh\n"
-        obj_str += f"# number of vertices: {len(mesh.vertices)}\n"
-        obj_str += f"# number of triangles: {len(mesh.triangles)}\n"
+        obj_str += f"# number of vertices: {len(points)}\n"
+        obj_str += f"# number of triangles: {len(faces)}\n"
 
-        if (len(mesh.vertices) <= 0):
+        if (len(points) <= 0):
             print("ATTENTION: Streamed mesh has no vertices")
 
-        for i, vertex in enumerate(mesh.vertices):
+        for i, vertex in enumerate(points):
             obj_str += f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"  # Write vertices
 
-        for i, normal in enumerate(mesh.vertex_normals):
-            obj_str += f"vn {normal[0]} {normal[1]} {normal[2]}\n"  # Write normals
+        #for i, normal in enumerate(mesh.vertex_normals):
+        #    obj_str += f"vn {normal[0]} {normal[1]} {normal[2]}\n"  # Write normals
 
-        for triangle in mesh.triangles:
+        for triangle in faces:
             obj_str += f"f {triangle[0] + 1}//{triangle[0] + 1} {triangle[1] + 1}//{triangle[1] + 1} {triangle[2] + 1}//{triangle[2] + 1}\n"
             # Correct "f v1//vn1 v2//vn2 v3//vn3" format
 

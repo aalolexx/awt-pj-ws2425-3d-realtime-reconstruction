@@ -3,15 +3,19 @@ import open3d as o3d
 
 from util.base_module import BaseModule
 from skimage.measure import marching_cubes
+import vtk
+from vtk.util import numpy_support
+from scipy.ndimage import zoom
+import time
 
 
 """
 Constructs a mesh from the reconstructed point cloud
 """
 class MeshGenerator(BaseModule):
-    def __init__(self, visualize=False, approach='marching'):
+    def __init__(self, visualize=False, approach='flying edges'):
         self._visualize = visualize
-        integrated_approaches = ['marching', 'ball', 'poisson', 'alpha']
+        integrated_approaches = ['flying edges', 'marching', 'ball', 'poisson', 'alpha']
         if approach in integrated_approaches:
             self._approach = approach
         else:
@@ -28,14 +32,26 @@ class MeshGenerator(BaseModule):
     # Run Step
     #
     def run_step(self, pcd_completed, scaling_factor):
-        input_volume = np.zeros((64,128,64), dtype=np.float32)
-        input_points = np.asarray(pcd_completed.points, dtype=np.uint8)
 
-        for (x, y, z) in input_points:
-            input_volume[x, y, z] = 1
+        #start_time = time.perf_counter()
+        #input_volume = np.zeros((64,128,64), dtype=np.float32)
+        #input_points = np.asarray(pcd_completed.points, dtype=np.uint8)
+        #
+#
+        #for (x, y, z) in input_points:
+        #    input_volume[x, y, z] = 1
+#
+        #elapsed_time = time.perf_counter() - start_time
+        #print("mesh volume: ", elapsed_time * 1000)
 
-        if self._approach == 'marching':
-            mesh = self.voxel_grid_to_mesh(input_volume, scaling_factor)
+        if self._approach == 'flying edges':
+            #mesh = self.flying_edges_algorithm(pcd_completed)
+            #mesh = self.voxel_grid_to_mesh(pcd_completed, scaling_factor)
+            #mesh = self.optimized_flying_edges(pcd_completed)
+            points, faces = self.optimized_flying_edges(pcd_completed, scaling_factor)
+
+        elif self._approach == 'marching':
+            mesh = self.voxel_grid_to_mesh(pcd_completed, scaling_factor)
         elif self._approach == 'ball':
             mesh = self.ball_pivoting(pcd_completed)
         elif self._approach == 'poisson':
@@ -43,10 +59,10 @@ class MeshGenerator(BaseModule):
         elif self._approach == 'alpha':
             mesh = self.alpha_shapes(pcd_completed)
 
-        if self._visualize:
-            self.visualize(mesh)
+        #if self._visualize:
+        #    self.visualize(mesh)
 
-        return mesh
+        return points, faces
     
 
     #
@@ -95,12 +111,91 @@ class MeshGenerator(BaseModule):
         self.vis.update_renderer()
 
 
+
+    def optimized_flying_edges(self, volume, scaling):
+        # Convert to float32 for faster processing
+        volume = volume.astype(np.float32)
+
+        # Downsample (optional) - Reduce dataset size
+        volume = zoom(volume, 0.5, order=1)
+
+        # Convert NumPy array to VTK ImageData
+        depth, height, width = volume.shape
+        vtk_data = vtk.vtkImageData()
+        vtk_data.SetDimensions(width, height, depth)
+
+        vtk_array = numpy_support.numpy_to_vtk(volume.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+        vtk_data.GetPointData().SetScalars(vtk_array)
+
+        # Use Flying Edges Algorithm
+        flying_edges = vtk.vtkFlyingEdges3D()
+        flying_edges.SetInputData(vtk_data)
+        flying_edges.SetValue(0, 0.005)  # Isosurface level
+        flying_edges.Update()
+
+        # Decimate to reduce triangles (optional)
+        decimate = vtk.vtkDecimatePro()
+        decimate.SetInputData(flying_edges.GetOutput())
+        decimate.SetTargetReduction(0.2)  # Reduce triangle count by 30%
+        decimate.Update()
+
+        # Convert to Open3D Mesh
+        polydata = decimate.GetOutput()
+        points = numpy_support.vtk_to_numpy(polydata.GetPoints().GetData())
+        faces = numpy_support.vtk_to_numpy(polydata.GetPolys().GetData()).reshape(-1, 4)[:, 1:]
+
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = o3d.utility.Vector3dVector(points)
+        mesh.triangles = o3d.utility.Vector3iVector(faces)
+        #mesh.compute_vertex_normals()
+
+        points = points * scaling
+
+        min_bound = points.min(axis=0)
+        max_bound = points.max(axis=0)
+        extents = max_bound - min_bound
+        max_scale = 2.0 / max(extents)
+        bounding_box_scale = np.array([max_scale, max_scale, max_scale])
+        points = points * bounding_box_scale
+
+
+        return points, faces
+        #return mesh
+    
+
+    def flying_edges_algorithm(self, volume):
+        depth, height, width = volume.shape
+        vtk_data = vtk.vtkImageData()
+        vtk_data.SetDimensions(width, height, depth)
+        vtk_data.AllocateScalars(vtk.VTK_UNSIGNED_CHAR, 1)
+
+        # Flatten and copy data into VTK format
+        vtk_array = numpy_support.numpy_to_vtk(num_array=volume.ravel(), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+        vtk_data.GetPointData().SetScalars(vtk_array)
+
+        # Step 2: Apply Flying Edges 3D algorithm
+        flying_edges = vtk.vtkFlyingEdges3D()
+        flying_edges.SetInputData(vtk_data)
+        flying_edges.SetValue(0, 0.5)  # Threshold at 0.5 to extract surface
+        flying_edges.Update()
+
+        # Step 3: Convert VTK PolyData to Open3D Mesh
+        polydata = flying_edges.GetOutput()
+        points = numpy_support.vtk_to_numpy(polydata.GetPoints().GetData())
+        faces = numpy_support.vtk_to_numpy(polydata.GetPolys().GetData()).reshape(-1, 4)[:, 1:]
+
+        # Create Open3D TriangleMesh
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = o3d.utility.Vector3dVector(points)
+        mesh.triangles = o3d.utility.Vector3iVector(faces)
+        mesh.compute_vertex_normals()
+
+        return mesh
+
     #
     # Marching Cubes Approach
     #
     def voxel_grid_to_mesh(self, volume, scaling_factor, isolevel=0.1):
-
-
         verts, faces, norms, vals = marching_cubes(
             volume, 
             level=isolevel, 
