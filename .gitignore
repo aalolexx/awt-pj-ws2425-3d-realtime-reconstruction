@@ -2,6 +2,7 @@
 scripts/dawid_temp
 scripts/alex
 vendor/
+notebooks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
