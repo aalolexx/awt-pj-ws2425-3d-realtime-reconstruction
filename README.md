@@ -15,8 +15,8 @@ Just to clarify the repository structure, here are some relevant subdirectories:
 * ...
 
 Our main software is the python project which offers a fully modular pipeline.
-The pipeline contains components which access models and vendor. In **pipeline_starter.py**
-the pipeline is put together. The pipeline can also stream the results to other environments for example in Unity.
+The pipeline contains components which access models/ and vendor/. In **pipeline_starter.py**
+the pipeline is put together. The pipeline can also stream the results to other environments like Unity.
 
 
 ## Setup
@@ -44,7 +44,7 @@ python -m pipeline_starter
 ```
 
 To visualize the point cloud and the mesh in Unity, 
-you have to open the [**unity-project**](unity-project/) in Unity.
+you have to open the [**unity-project**](unity-project/awt-reconstruction/) in Unity.
 > Note that we use Unity 2023
 
 Then you can direct into the sample scene. 
@@ -66,7 +66,7 @@ In the console you see the performances for each component.
 
 ### Application
 The python software visualizes in open3d. You can also stream the point cloud and the mesh via websockets.
-Each Component is initialized in the pipeline. There you can change some options.
+Each component is initialized in the pipeline. There you can change some options.
 For example:
 ```
 mesh_generator = MeshGenerator(visualize=True, approach='alpha')
@@ -74,5 +74,6 @@ mesh_generator = MeshGenerator(visualize=True, approach='alpha')
 With **visualize** you decide for each step if it should generate visual output.
 With **approach** (only in MeshGenerator) you can decide which mesh generation approach is used.
 In the Picture you can see the currently supported options.
+
 ![](screenshots/mesh_generation_vs_original.png "Mesh Generation Options")
 > Note that in poisson the material is missing. When you stream to Unity it would also be gray.
