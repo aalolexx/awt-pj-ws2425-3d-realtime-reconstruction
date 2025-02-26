@@ -25,11 +25,11 @@ depth_estimator = DepthEstimator(visualize=False)
 #foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
 depth_thresholder = DepthThresholder(visualize=False)
 #depth_segmenter = DepthSegmenter(visualize=True)
-pointcloud_generator = PointCloudGenerator(visualize=False)
+pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
                             checkpoint_name="voxel_weights_10.pth",
-                            visualize=False
+                            visualize=True
                            )
 mesh_generator = MeshGenerator(visualize=False, approach='flying edges')
 mesh_streamer = MeshStreamer(visualize=True)

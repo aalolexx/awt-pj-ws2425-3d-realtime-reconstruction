@@ -20,7 +20,7 @@ Uses our custom made Models to reconstruct a incomplete point cloud (given from 
 class PointCloudReconstructor(BaseModule):
     def __init__(self, model_name, checkpoint_name, visualize=False):
         """Initialize the PointCloudReconstructor."""
-        self._threshold = 0.30
+        self._threshold = 0.25
         self._visualize = visualize
         self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
         classes_module = importlib.import_module("ModelClasses")
@@ -41,7 +41,7 @@ class PointCloudReconstructor(BaseModule):
             max_bound = np.array([1, 1, 1])
             aabb = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
             aabb.color = (1, 0, 0)
-            self.vis.add_geometry(aabb)
+            #self.vis.add_geometry(aabb)
 
 
     #
@@ -71,7 +71,6 @@ class PointCloudReconstructor(BaseModule):
             # 1) X-direction pooling with kernel=(1,1,3)
             #    pad=1 ensures we include the "left" and "right" neighbors at edges.
             max_x = F.max_pool3d(t_in, kernel_size=(1,1,9), stride=1, padding=(0,0,4))
-            # Compare
             mask_x = (t_in == max_x)
 
             # 2) Y-direction pooling with kernel=(1,3,1)
@@ -86,59 +85,16 @@ class PointCloudReconstructor(BaseModule):
             final_mask = mask_x | mask_y | mask_z
             out = t_in * final_mask.float()
 
-            #left2  = torch.roll(tensor_3d,  shifts=2,  dims=2)
-            #left  = torch.roll(model_output_tensor,  shifts=1,  dims=2)
-            #right = torch.roll(model_output_tensor,  shifts=-1, dims=2)
-            ##right2 = torch.roll(tensor_3d,  shifts=-2, dims=2)
-            #mask_x = (model_output_tensor >= left) & (model_output_tensor >= right)# & (tensor_3d >= left2) & (tensor_3d >= right2)
-#
-            ##up2    = torch.roll(tensor_3d,  shifts=2,  dims=1)
-            #up    = torch.roll(model_output_tensor,  shifts=1,  dims=1)
-            #down  = torch.roll(model_output_tensor,  shifts=-1, dims=1)
-            ##down2  = torch.roll(tensor_3d,  shifts=-2, dims=1)
-            #mask_y = (model_output_tensor >= up) & (model_output_tensor >= down)# & (tensor_3d >= up2) & (tensor_3d >= down2)
-#
-            ##front2 = torch.roll(tensor_3d,  shifts=2,  dims=0)
-            #front = torch.roll(model_output_tensor,  shifts=1,  dims=0)
-            #back  = torch.roll(model_output_tensor,  shifts=-1, dims=0)
-            ##back2  = torch.roll(tensor_3d,  shifts=-2, dims=0)
-            #mask_z = (model_output_tensor >= front) & (model_output_tensor >= back)# & (tensor_3d >= front2) & (tensor_3d >= back2)
-            #final_mask = mask_x | mask_y | mask_z
-            #out_3d = model_output_tensor * final_mask
-
-            ## MAXIMUM
-
-
-            #thresholded_point_cloud = self.construct_point_cloud_from_tensor_fast(maxima_tensor)
-            ## RECONSTRUCT
             # Squeeze on the GPU
+            if self._visualize:
+                rec_pcd = copy.deepcopy(out)
             squeezed = out.squeeze()  # still on GPU
-
-            # Find coords on GPU
-            #coords_gpu = (squeezed > self._threshold).nonzero(as_tuple=False)
             squeezed += 0.75
-
-
-            # Convert to float if needed (still GPU)
-            #coords_gpu = coords_gpu.float()
-
-            # Transfer only valid coords to CPU
             coords_cpu = squeezed.detach().cpu().numpy().astype("uint8")
 
-            # Create Open3D point cloud
-            #pcd = o3d.geometry.PointCloud()
-            #pcd.points = o3d.utility.Vector3dVector(coords_cpu)
-            #elapsed_time2 = time.perf_counter() - start_time2
-            #print("thresh:", elapsed_time2 * 1000)
-            ### RECONSTRUCT
-            #
-            #reconstructed_pcd = pcd
-            #
-            ##reconstructed_pcd = model_output_tensor
-            ##reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
-
-        #if self._visualize:
-        #    self.visualize(reconstructed_pcd)
+        if self._visualize:
+            reconstructed_pcd = self.construct_point_cloud_from_tensor_fast(rec_pcd)
+            self.visualize(reconstructed_pcd)
 
         return coords_cpu, scaling_factor
 
@@ -228,46 +184,22 @@ class PointCloudReconstructor(BaseModule):
 
 
     def construct_point_cloud_from_tensor_fast(self, tensor):
-        torch.cuda.synchronize()
 
         # Squeeze on the GPU
-        start_time = time.perf_counter()
         squeezed = tensor.squeeze()  # still on GPU
-        torch.cuda.synchronize()
-
-        elapsed_time = time.perf_counter() - start_time
-        print("squezze: ", elapsed_time * 1000)
 
         # Find coords on GPU
-        start_time = time.perf_counter()
         coords_gpu = (squeezed > self._threshold).nonzero(as_tuple=False)
-        torch.cuda.synchronize()
-
-        elapsed_time = time.perf_counter() - start_time
-        print("coords: ", elapsed_time * 1000)
 
         # Convert to float if needed (still GPU)
-        start_time = time.perf_counter()
         coords_gpu = coords_gpu.float()
-        torch.cuda.synchronize()
-        elapsed_time = time.perf_counter() - start_time
-        print("float: ", elapsed_time * 1000)
 
         # Transfer only valid coords to CPU
-        start_time = time.perf_counter()
         coords_cpu = coords_gpu.cpu().numpy()
-        torch.cuda.synchronize()
-
-        elapsed_time = time.perf_counter() - start_time
-        print("numpy: ", elapsed_time * 1000)
 
         # Create Open3D point cloud
-        start_time = time.perf_counter()
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(coords_cpu)
-        torch.cuda.synchronize()
-        elapsed_time = time.perf_counter() - start_time
-        print("pcdcon: ", elapsed_time * 1000)
         return pcd
 
 
