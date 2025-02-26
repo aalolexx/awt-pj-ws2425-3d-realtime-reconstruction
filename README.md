@@ -1,7 +1,7 @@
 # Realtime 3D Human Mesh Reconstruction from a single 2D Camera View
 This repository contains elements created as a part of the AWT project seminar.
 With this work, we want to reconstruct a 3D human mesh in realtime from a singe 2D camera view.
-![](screenshots/unity_visualization_vs_original.png "Result")
+![](demo-material/screenshots/unity_visualization_vs_original.png "Result")
 
 Just to clarify the repository structure, here are some relevant subdirectories:
 * Python Project
@@ -9,9 +9,9 @@ Just to clarify the repository structure, here are some relevant subdirectories:
   * pipeline
   * vendor
 * Unity project
-  * unity-project
+  * unity-project _for result streaming/visualization_
 * Data 
-  * recordings
+  * recordings _used as an alternative to a webcams tream_
 * ...
 
 Our main software is the python project which offers a fully modular pipeline.
@@ -47,8 +47,9 @@ To visualize the point cloud and the mesh in Unity,
 you have to open the [**unity-project**](unity-project/awt-reconstruction/) in Unity.
 > Note that we use Unity 2023
 
-Then you can direct into the sample scene. 
-When you press play it automatically connects to the websocket and updates the point cloud and the mesh.
+Navigate to the "sample scene".
+starting the scene will automatically connect to the websockets started from the python
+pipeline and the point cloud and the mesh will be updated.
 Make sure to run python first to establish the connection.
 
 
@@ -59,21 +60,27 @@ With
 cd pipeline
 python -m pipeline_starter
 ```
-you run the code.
-In the console you see the performances for each component.
-![](screenshots/console.png "Console Output")
+When running the code our pipeline interface shows up visualizing each active module and it's frame processing time.
+![](demo-material/screenshots/console.png "Console Output")
 
 
-### Application
-The python software visualizes in open3d. You can also stream the point cloud and the mesh via websockets.
-Each component is initialized in the pipeline. There you can change some options.
+### Pipeline Options
+The python software visualizes in open3d.
+You can also stream the point cloud and the mesh via websockets.
+Each component is initialized in the pipeline and has different option parameters.
 For example:
 ```
 mesh_generator = MeshGenerator(visualize=True, approach='alpha')
 ```
-With **visualize** you decide for each step if it should generate visual output.
-With **approach** (only in MeshGenerator) you can decide which mesh generation approach is used.
+
+Each module has a **visualize** param which decides
+for each step if it should generate visual output directley in the pipeline.
+
+With the **approach** parameter (only in MeshGenerator) you can decide which mesh generation approach is used.
 In the Picture you can see the currently supported options.
 
-![](screenshots/mesh_generation_vs_original.png "Mesh Generation Options")
+![](demo-material/screenshots/mesh_generation_vs_original.png "Mesh Generation Options")
 > Note that in poisson the material is missing. When you stream to Unity it would also be gray.
+
+Also the `depth_thresholder` module can be exchanged with the `foreground_extractor` module for a high quality
+Foreground segmentation that is more robust and reliable but slow's the pipeline dramatically.

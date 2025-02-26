@@ -37,13 +37,8 @@ pcd_streamer = PcdStreamer(visualize=False)
 
 # Prepare Webcam
 #cap = cv2.VideoCapture(0)
-video_path = "../recordings/recording.avi"
-video_path2 = "../recordings/recording2.mp4"
-video_path3 = "../recordings/recording3.mp4"
-video_path4 = "../recordings/recording4.mp4"
-video_path5 = "../recordings/recording5.mp4"
-video_path8 = "../recordings/recording8_cut.mp4"
-cap = cv2.VideoCapture(video_path5)
+video_path = "../demo-material/recordings/recording5.mp4"
+cap = cv2.VideoCapture(video_path)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
