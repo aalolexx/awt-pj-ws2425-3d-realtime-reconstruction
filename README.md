@@ -65,6 +65,12 @@ When running the code our pipeline interface shows up visualizing each active mo
 
 
 ### Pipeline Options
+In Pipeline Starter you can choose between high performance mode and weather to choose a presaved video as input or a live camera stram:
+```
+is_highperformance_mode = True  # Use RMBG Model or Fast Segmentation Thresholding
+is_live_stream_mode = False  # Use live stream from webcam source or recording5.mp4
+```
+
 The python software visualizes in open3d.
 You can also stream the point cloud and the mesh via websockets.
 Each component is initialized in the pipeline and has different option parameters.

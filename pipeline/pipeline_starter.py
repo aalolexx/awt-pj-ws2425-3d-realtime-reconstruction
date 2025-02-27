@@ -20,11 +20,25 @@ from components.mesh_generator.MeshGenerator import MeshGenerator
 from components.streaming.MeshStreamer import MeshStreamer
 from components.streaming.PcdStreamer import PcdStreamer
 
+
+###
+# PIPELINE RUN MODES
+###
+is_highperformance_mode = True  # Use RMBG Model or Fast Segmentation Thresholding
+is_live_stream_mode = False  # Use live stream from webcam source or recording5.mp4
+
+
+###
 # Initialize the Pipeline Modules
+###
+
 depth_estimator = DepthEstimator(visualize=False)
-#foreground_extractor = ForegroundExtractor(input_size=(384, 384), visualize=True)
-depth_thresholder = DepthThresholder(visualize=True)
-#depth_segmenter = DepthSegmenter(visualize=True)
+if is_highperformance_mode:
+    foreground_masker = DepthThresholder(visualize=True)
+    #  depth_segmenter = DepthSegmenter(visualize=True)  contour based approach
+else:
+    foreground_masker = ForegroundExtractor(visualize=True)
+
 pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
                             model_name="VoxelAutoEncoder",
@@ -35,10 +49,12 @@ mesh_generator = MeshGenerator(visualize=True, approach='marching')
 mesh_streamer = MeshStreamer(visualize=False)
 pcd_streamer = PcdStreamer(visualize=False)
 
-# Prepare Webcam
-#cap = cv2.VideoCapture(0)
-video_path = "../demo-material/recordings/recording5.mp4"
-cap = cv2.VideoCapture(video_path)
+# Prepare Video Stream
+if is_live_stream_mode:
+    cap = cv2.VideoCapture(0)
+else:
+    video_path = "../demo-material/recordings/recording5.mp4"
+    cap = cv2.VideoCapture(video_path)
 
 ###
 # CONSOLE PRINTING FUNCTIONS
@@ -143,7 +159,11 @@ def run_pipeline():
 
             # Foreground Extraction Model
             start_time = time.perf_counter()
-            foreground_mask = depth_thresholder.run_step(depth_image)
+            if is_highperformance_mode:
+                foreground_mask = foreground_masker.run_step(depth_image)
+            else:
+                foreground_mask = foreground_masker.run_step(frame)
+
             elapsed_time = time.perf_counter() - start_time
             time_per_module[2] = elapsed_time * 1000
 
