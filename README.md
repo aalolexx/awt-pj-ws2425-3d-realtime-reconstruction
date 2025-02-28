@@ -25,7 +25,7 @@ We use conda to create our environment
 ```
 git clone ...
 cd awt-pj-ws2425-3d-realtime-reconstruction
-conda create --name <env> --file requirements.txt
+conda env create -f environment.yml
 ```
 
 We use the [Depth Anything V2 Model](https://github.com/DepthAnything/Depth-Anything-V2).
