@@ -31,7 +31,6 @@ is_live_stream_mode = False  # Use live stream from webcam source or recording5.
 ###
 # Initialize the Pipeline Modules
 ###
-
 depth_estimator = DepthEstimator(visualize=False)
 if is_highperformance_mode:
     foreground_masker = DepthThresholder(visualize=True)
@@ -41,8 +40,8 @@ else:
 
 pointcloud_generator = PointCloudGenerator(visualize=True)
 pointcloud_reconstructor = PointCloudReconstructor(
-                            model_name="VoxelAutoEncoder",
-                            checkpoint_name="voxel_weights_10.pth",
+                            model_name="UnetVoxelAutoEncoder",
+                            checkpoint_name="unet_auto_encoder.pth",
                             visualize=False
                            )
 mesh_generator = MeshGenerator(visualize=True, approach='marching')
@@ -116,7 +115,6 @@ def is_depth_ok(depth_image):
 ###
 # Run Pipeline
 ###
-
 def run_pipeline():
     """Continuously capture frames from webcam and process them."""
 
@@ -199,7 +197,10 @@ def run_pipeline():
 
             # PCD Streaming
             start_time = time.perf_counter()
-            rescaled_reconstructed_pcd = pointcloud_reconstructor.reverse_scale_of_point_cloud(reconstructed_pcd, scaling_factor)
+            rescaled_reconstructed_pcd = pointcloud_reconstructor.reverse_scale_of_point_cloud(
+                reconstructed_pcd,
+                scaling_factor
+            )
             pcd_streamer.run_step(rescaled_reconstructed_pcd)
             elapsed_time = time.perf_counter() - start_time
             time_per_module[6] = elapsed_time * 1000

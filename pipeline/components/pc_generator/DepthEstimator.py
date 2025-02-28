@@ -29,7 +29,7 @@ class DepthEstimator(BaseModule):
             device = 'cpu'
             print('WARNING: CUDA is not available, using CPU instead.')
         
-# Disable memory efficient attention to avoid xFormers issues
+        # Disable memory efficient attention to avoid xFormers issues
         torch.backends.cuda.enable_mem_efficient_sdp = False
 
         self.model.load_state_dict(torch.load(os.path.join(model_dir, 'depth_anything_v2_vits.pth'), map_location=device, weights_only=True))
