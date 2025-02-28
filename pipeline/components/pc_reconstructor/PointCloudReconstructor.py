@@ -48,7 +48,8 @@ class PointCloudReconstructor(BaseModule):
             model_output_tensor = self._rc_model(input_tensor)
 
             # post processing
-            maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
+            #maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
+            maxima_tensor = self.nms_1d_axes(model_output_tensor) # more advanced NMS and max pool
             thresholded_point_cloud = self.construct_point_cloud_from_tensor(maxima_tensor)
             reconstructed_pcd = thresholded_point_cloud
 
@@ -185,3 +186,26 @@ class PointCloudReconstructor(BaseModule):
             rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
 
         return rescaled_point_cloud
+    
+
+    #
+    # Advanced Non-Maxima Suppression (NMS)
+    #
+    def nms_1d_axes(self, tensor):
+        """Applies NMS along the axes directions"""
+        # X-direction pooling
+        max_x = F.max_pool3d(tensor, kernel_size=(1,1,9), stride=1, padding=(0,0,4))
+        mask_x = (tensor == max_x)
+
+        # Y-direction pooling
+        max_y = F.max_pool3d(tensor, kernel_size=(1,9,1), stride=1, padding=(0,4,0))
+        mask_y = (tensor == max_y)
+
+        # Z-direction pooling
+        max_z = F.max_pool3d(tensor, kernel_size=(9,1,1), stride=1, padding=(4,0,0))
+        mask_z = (tensor == max_z)
+
+        # Combine
+        final_mask = mask_x | mask_y | mask_z
+        out = tensor * final_mask.float()
+        return out
