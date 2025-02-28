@@ -157,3 +157,31 @@ class PointCloudReconstructor(BaseModule):
         self.vis.poll_events()
         self.vis.update_renderer()
 
+
+    #
+    # Reverse scaling
+    #
+    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, scale_to_bounding_box=True):
+        """
+        Rescale point cloud to it's original position and scale
+        Optionally scale pointcloud into bounding box around the center
+        """
+        # reverse scale
+        points = np.asarray(point_cloud.points)
+        points = points - (32,64,32)
+        points = points * reverse_scale
+        rescaled_point_cloud = o3d.geometry.PointCloud()
+        rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        # calculate scale to transform pcd into bounding box
+        if scale_to_bounding_box:
+            points = np.asarray(rescaled_point_cloud.points)
+            min_bound = rescaled_point_cloud.get_min_bound()
+            max_bound = rescaled_point_cloud.get_max_bound()
+            extents = max_bound - min_bound
+            max_scale = 2.0 / max(extents)
+            bounding_box_scale = np.array([max_scale, max_scale, max_scale])
+            points = points * bounding_box_scale
+            rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        return rescaled_point_cloud
