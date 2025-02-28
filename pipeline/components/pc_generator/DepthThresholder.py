@@ -29,7 +29,6 @@ class DepthThresholder(BaseModule):
         most_central_centeroid_idx = np.argmin([np.linalg.norm(c - image_center) for c in centeroids])
         #biggest_contour_idx = np.argmax([cv2.contourArea(c) for c in contours])
 
-
         final_mask = np.zeros(mask.shape)
         cv2.drawContours(image=final_mask, contours=contours, contourIdx=most_central_centeroid_idx, color=(255),
                          thickness=cv2.FILLED)

@@ -39,8 +39,7 @@ class PointCloudReconstructor(BaseModule):
     #
     def run_step(self, pcd_incomplete):
         """Parse the pcd into a voxel grid and reconstruct it."""
-        # Parse the PCD into a voxel grid
-        normalized_pcd, scaling_factor = self.normalize_anti_isotropic(pcd_incomplete)
+        normalized_pcd, scaling_factor = self.normalize(pcd_incomplete)
         input_tensor = self.pointcloud_to_tensor(normalized_pcd)
 
         self._rc_model.eval()
@@ -49,11 +48,10 @@ class PointCloudReconstructor(BaseModule):
             model_output_tensor = self._rc_model(input_tensor)
 
             # post processing
-            maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
-            #thresholded_point_cloud = self.construct_point_cloud_from_tensor(model_output_tensor)
+            #maxima_tensor = self.max_pooling(model_output_tensor, input_tensor)
+            maxima_tensor = self.nms_1d_axes(model_output_tensor) # more advanced NMS and max pool
             thresholded_point_cloud = self.construct_point_cloud_from_tensor(maxima_tensor)
             reconstructed_pcd = thresholded_point_cloud
-            #reconstructed_pcd = self.reverse_scale_of_point_cloud(thresholded_point_cloud, scaling_factor)
 
         if self._visualize:
             self.visualize(reconstructed_pcd)
@@ -62,9 +60,10 @@ class PointCloudReconstructor(BaseModule):
 
 
     #
-    # normalizes point cloud to the borders of a (64x128x64) box
+    # Normalize
     #
-    def normalize_anti_isotropic(self, pcd: o3d.geometry.PointCloud):
+    def normalize(self, pcd):
+        """Normalize point cloud into bounding box of (64, 128, 64)"""
         if pcd is None:
             return pcd
         
@@ -94,9 +93,10 @@ class PointCloudReconstructor(BaseModule):
 
 
     #
-    # transforms pointcloud into tensor
+    # Point Cloud to Tensor
     #
     def pointcloud_to_tensor(self, pcd):
+        """Extracts all points from a point cloud and transforms it to a tensor"""
         input_volume = np.zeros((64,128,64), dtype=np.uint8)
         if not pcd is None:
             if not pcd.is_empty():
@@ -109,29 +109,10 @@ class PointCloudReconstructor(BaseModule):
 
 
     #
-    # parse the pcd into a voxel tensor
-    #
-    def get_3d_tensor_from_pcd(self, pcd):
-        points = np.asarray(pcd.points)
-        min_bound = np.min(points, axis=0)
-        max_bound = np.max(points, axis=0)
-        grid_size = 32  # TODO IN PARAMS
-        voxel_size = (max_bound - min_bound) / grid_size
-
-        normalized_points = (points - min_bound) / voxel_size
-        grid_points = np.floor(normalized_points).astype(int)
-        grid_points = np.clip(grid_points, 0, grid_size - 1)
-        grid_tensor = torch.zeros((grid_size, grid_size, grid_size), dtype=torch.int32)
-        for point in grid_points:
-            grid_tensor[tuple(point)] = 1
-
-        return grid_tensor.float()
-
-
-    #
-    # Apply max pooling
+    # Max pooling / Non-maxima suppresion
     #
     def max_pooling(self, model_output, input_tensor):
+        """Suppress points which are not the maxima"""
         # pad model output
         x_padded = F.pad(model_output, pad=(0, 1, 0, 1, 0, 1), mode='constant', value=0)
 
@@ -146,9 +127,10 @@ class PointCloudReconstructor(BaseModule):
 
 
     #
-    # Threshold tensor and construct point cloud from tensor
+    # Point Cloud to Tensor
     #
     def construct_point_cloud_from_tensor(self, tensor):
+        """Threshold tensor and construct point cloud from tensor"""
         suppressed_numpy = tensor.squeeze().cpu().numpy()
         suppressed_thresholded = np.argwhere(suppressed_numpy > self._threshold)
         suppressed_points = np.array(suppressed_thresholded, dtype=np.float32)
@@ -158,39 +140,14 @@ class PointCloudReconstructor(BaseModule):
 
 
     #
-    # Rescale point cloud to it's original position and scale
-    # Optionally scale pointcloud into bounding box around the center
+    # Visualize
     #
-    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, should_scale_to_bounding_box=True):
-        # reverse scale
-        points = np.asarray(point_cloud.points)
-        points = points - (32,64,32)
-        points = points * reverse_scale
-        rescaled_point_cloud = o3d.geometry.PointCloud()
-        rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
-
-        # calculate scale to transform pcd into bounding box (only for testing, remove in the final version)
-        if should_scale_to_bounding_box:
-            points = np.asarray(rescaled_point_cloud.points)
-            min_bound = rescaled_point_cloud.get_min_bound()
-            max_bound = rescaled_point_cloud.get_max_bound()
-            extents = max_bound - min_bound
-            max_scale = 2.0 / max(extents)
-            bounding_box_scale = np.array([max_scale, max_scale, max_scale])
-            points = points * bounding_box_scale
-            rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
-
-        return rescaled_point_cloud
-
-
-    #
-    # Visualize a 3D Tensor
-    #
-    def visualize(self, point_cloud):        
+    def visualize(self, point_cloud):
+        """Visualizereconstructed point cloud"""
         if not self.is_point_cloud_created:
             self.vis.add_geometry(point_cloud)
             self.is_point_cloud_created = True
-            self.pcd_placeholder = point_cloud  # TODO aeh is the placeholder needed?
+            self.pcd_placeholder = point_cloud
         else:
             # Update points and colors of the existing point cloud
             self.pcd_placeholder.points = point_cloud.points
@@ -201,3 +158,54 @@ class PointCloudReconstructor(BaseModule):
         self.vis.poll_events()
         self.vis.update_renderer()
 
+
+    #
+    # Reverse scaling
+    #
+    def reverse_scale_of_point_cloud(self, point_cloud, reverse_scale, scale_to_bounding_box=True):
+        """
+        Rescale point cloud to it's original position and scale
+        Optionally scale pointcloud into bounding box around the center
+        """
+        # reverse scale
+        points = np.asarray(point_cloud.points)
+        points = points - (32,64,32)
+        points = points * reverse_scale
+        rescaled_point_cloud = o3d.geometry.PointCloud()
+        rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        # calculate scale to transform pcd into bounding box
+        if scale_to_bounding_box:
+            points = np.asarray(rescaled_point_cloud.points)
+            min_bound = rescaled_point_cloud.get_min_bound()
+            max_bound = rescaled_point_cloud.get_max_bound()
+            extents = max_bound - min_bound
+            max_scale = 2.0 / max(extents)
+            bounding_box_scale = np.array([max_scale, max_scale, max_scale])
+            points = points * bounding_box_scale
+            rescaled_point_cloud.points = o3d.utility.Vector3dVector(points)
+
+        return rescaled_point_cloud
+    
+
+    #
+    # Advanced Non-Maxima Suppression (NMS)
+    #
+    def nms_1d_axes(self, tensor):
+        """Applies NMS along the axes directions"""
+        # X-direction pooling
+        max_x = F.max_pool3d(tensor, kernel_size=(1,1,9), stride=1, padding=(0,0,4))
+        mask_x = (tensor == max_x)
+
+        # Y-direction pooling
+        max_y = F.max_pool3d(tensor, kernel_size=(1,9,1), stride=1, padding=(0,4,0))
+        mask_y = (tensor == max_y)
+
+        # Z-direction pooling
+        max_z = F.max_pool3d(tensor, kernel_size=(9,1,1), stride=1, padding=(4,0,0))
+        mask_z = (tensor == max_z)
+
+        # Combine
+        final_mask = mask_x | mask_y | mask_z
+        out = tensor * final_mask.float()
+        return out
