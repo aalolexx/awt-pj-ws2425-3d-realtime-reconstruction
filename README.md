@@ -80,7 +80,7 @@ mesh_generator = MeshGenerator(visualize=True, approach='alpha')
 ```
 
 Each module has a **visualize** param which decides
-for each step if it should generate visual output directley in the pipeline.
+for each step if it should generate visual output directly in the pipeline.
 
 With the **approach** parameter (only in MeshGenerator) you can decide which mesh generation approach is used.
 In the Picture you can see the currently supported options.
