@@ -90,3 +90,6 @@ In the Picture you can see the currently supported options.
 
 Also the `depth_thresholder` module can be exchanged with the `foreground_extractor` module for a high quality
 Foreground segmentation that is more robust and reliable but slow's the pipeline dramatically.
+
+## Paper
+Our paper can be found in this repository [here](awt-pj-ws2425-report-3D-realtime-reconstruction.pdf)
